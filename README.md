@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ThorVault v0.12.22-alpha
 
 ## Offline-first Android transfer milestone
@@ -12,3 +13,7 @@ Android save operations are now local:
 
 The server is only used for Vault synchronization, backups, snapshots and
 multi-device reconciliation. Browser save operations remain server-backed.
+=======
+# thorVault
+Experimental offline-first Pokémon save manager with local processing and cross-device vault synchronization.
+>>>>>>> dca1390fed9c2d74c027a4e00d3f58649f8e365f
