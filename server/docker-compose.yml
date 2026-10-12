@@ -1,0 +1,32 @@
+name: thorvault
+services:
+  thorvault:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    image: thorvault:0.12.15
+    container_name: thorvault
+    restart: unless-stopped
+    environment:
+      THORVAULT_TOKEN: ${THORVAULT_TOKEN}
+      THORVAULT_DATA: /data/thorvault
+      THORVAULT_ROMS: /data/roms
+      THORVAULT_SAVES: /data/saves
+      THORVAULT_CORS_ORIGINS: ${THORVAULT_CORS_ORIGINS:-https://appassets.androidplatform.net}
+    ports:
+      - "${THORVAULT_HTTP_PORT:-8770}:8765"
+    volumes:
+      - thorvault-data:/data/thorvault
+      # Optional examples:
+      # - /mnt/tank/roms:/data/roms:ro
+      # - /mnt/tank/pokemon-saves:/data/saves:ro
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/api/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  thorvault-data:
+    name: thorvault-data

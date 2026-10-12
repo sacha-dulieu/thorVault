@@ -1,0 +1,70 @@
+name: Build installable ThorVault APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    name: Build Android APK with bundled offline engine
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Validate JavaScript and bundled Android assets
+        run: |
+          node --check app/android-bridge.js
+          node --check android/app/src/main/assets/www/android-bridge.js
+          cmp app/index.html android/app/src/main/assets/www/index.html
+          cmp app/android-bridge.js android/app/src/main/assets/www/android-bridge.js
+
+      - name: Set up Java for Android build
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up .NET 10 and WebAssembly tools
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.302'
+          workloads: wasm-tools
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - name: Install required Android SDK packages
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Build and bundle the local offline Pokémon engine
+        run: |
+          chmod +x scripts/build-local-engine-mac.sh
+          ./scripts/build-local-engine-mac.sh
+          test -s android/app/src/main/assets/www/local-engine/dotnet.boot.js
+          test -s android/app/src/main/assets/www/local-engine/dotnet.native.wasm
+          test -s android/app/src/main/assets/www/local-engine/ThorVault.Engine.Wasm.dll
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.1.0'
+
+      - name: Build installable debug APK
+        working-directory: android
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThorVault-v0.12.22-alpha-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
