@@ -10,13 +10,9 @@ permissions:
 jobs:
   build-apk:
     name: Build Android APK with bundled offline engine
-<<<<<<< HEAD
     runs-on: ubuntu-24.04
-=======
-    runs-on: ubuntu-latest
->>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     timeout-minutes: 45
-
+    
     steps:
       - name: Checkout source
         uses: actions/checkout@v6
