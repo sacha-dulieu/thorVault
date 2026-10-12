@@ -1,11 +1,7 @@
 {
   "name": "ThorVault",
   "short_name": "ThorVault",
-<<<<<<< HEAD
   "description": "ThorVault v0.12.22-alpha with explicit wasm-tools workload restore for the local PKHeX.Core WebAssembly engine",
-=======
-  "description": "ThorVault v0.12.24-alpha with explicit wasm-tools workload restore for the local PKHeX.Core WebAssembly engine",
->>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
   "start_url": "/",
   "display": "standalone",
   "background_color": "#080c18",

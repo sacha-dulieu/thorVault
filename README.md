@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
 # ThorVault v0.12.22-alpha
 
 ## Offline-first Android transfer milestone
@@ -14,7 +10,6 @@ Android save operations are now local:
 - Vault → Game save write → bundled WASM/PKHeX.Core.
 - Final Apply to device → Android Storage Access Framework.
 
-<<<<<<< HEAD
 The server is used for Vault synchronization, server-side snapshots/backups, and
 multi-device reconciliation. Device-save backups created before Apply/Restore are
 stored locally under the selected Android scan location. Browser save operations
@@ -34,11 +29,3 @@ remain server-backed.
 - Use L1/R1 to cycle app tabs. The D-pad moves focus between visible controls and box slots; use the controller confirm button to activate the focused item.
 
 Scan detection is heuristic and does not guarantee every emulator save will be found. Android may deny access to protected directories; add any accessible save directories separately.
-=======
-The server is only used for Vault synchronization, backups, snapshots and
-multi-device reconciliation. Browser save operations remain server-backed.
-=======
-# thorVault
-Experimental offline-first Pokémon save manager with local processing and cross-device vault synchronization.
->>>>>>> dca1390fed9c2d74c027a4e00d3f58649f8e365f
->>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
