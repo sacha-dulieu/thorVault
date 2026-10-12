@@ -8,8 +8,11 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
+<<<<<<< HEAD
 import android.provider.DocumentsContract;
 import android.view.KeyEvent;
+=======
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
@@ -33,9 +36,12 @@ import java.net.URL;
 import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+<<<<<<< HEAD
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
+=======
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -44,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
+<<<<<<< HEAD
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -54,12 +61,21 @@ public final class MainActivity extends ComponentActivity {
   private static final int MAX_SCAN_DEPTH = 24;
   private static final int MAX_SCAN_VISITS = 50000;
   private static final int MAX_SCAN_RESULTS = 1000;
+=======
+
+public final class MainActivity extends ComponentActivity {
+  private static final long MAX_FILE = 16L * 1024L * 1024L;
+  private static final int MAX_SCAN_DEPTH = 24;
+  private static final int MAX_SCAN_VISITS = 25000;
+  private static final int MAX_SCAN_RESULTS = 500;
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
 
   private static final class ScanStats {
     int visited = 0;
     int ignored = 0;
     int maxDepth = 0;
   }
+<<<<<<< HEAD
 
   private static final class ScanRun {
     String requestId = "";
@@ -103,6 +119,11 @@ public final class MainActivity extends ComponentActivity {
   private SharedPreferences prefs;
   private ActivityResultLauncher<Uri> folderPicker;
   private final Map<String, AtomicBoolean> activeScans = new ConcurrentHashMap<>();
+=======
+  private WebView webView;
+  private SharedPreferences prefs;
+  private ActivityResultLauncher<Uri> folderPicker;
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
 
   @Override protected void onCreate(Bundle state) {
     super.onCreate(state);
@@ -172,6 +193,7 @@ public final class MainActivity extends ComponentActivity {
     webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=1222");
   }
 
+<<<<<<< HEAD
   @Override public boolean dispatchKeyEvent(KeyEvent event) {
     if (event != null && event.getAction() == KeyEvent.ACTION_DOWN && webView != null) {
       int code = event.getKeyCode();
@@ -198,6 +220,8 @@ public final class MainActivity extends ComponentActivity {
     return super.dispatchKeyEvent(event);
   }
 
+=======
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
   @Override protected void onPause() {
     if (webView != null) {
       webView.evaluateJavascript(
@@ -218,6 +242,7 @@ public final class MainActivity extends ComponentActivity {
     }
   }
 
+<<<<<<< HEAD
   private List<String> getStoredGameTreeUris() {
     LinkedHashSet<String> values = new LinkedHashSet<>();
     String raw = prefs.getString("game_tree_uris", "");
@@ -260,12 +285,18 @@ public final class MainActivity extends ComponentActivity {
     }
   }
 
+=======
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
   private void persistSelectedTree(Uri uri) {
     int readFlag = Intent.FLAG_GRANT_READ_URI_PERMISSION;
     int writeFlag = Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
     int persistedFlags = 0;
     String permissionMode = "temporary";
     String warning = "";
+<<<<<<< HEAD
+=======
+
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     try {
       getContentResolver().takePersistableUriPermission(uri, readFlag | writeFlag);
       persistedFlags = readFlag | writeFlag;
@@ -280,6 +311,7 @@ public final class MainActivity extends ComponentActivity {
         warning = "Android did not grant persistent access. The folder may stop working after restart.";
       }
     }
+<<<<<<< HEAD
     DocumentFile root = DocumentFile.fromTreeUri(this, uri);
     boolean readable = root != null && root.exists() && root.canRead();
     List<String> uris = getStoredGameTreeUris();
@@ -296,6 +328,34 @@ public final class MainActivity extends ComponentActivity {
       prefs.edit().putString("game_tree_status", "storage-error")
           .putString("game_tree_error", "ThorVault could not save the selected folder URI.").apply();
     }
+=======
+
+    DocumentFile root = DocumentFile.fromTreeUri(this, uri);
+    boolean exists = root != null && root.exists();
+    boolean readable = root != null && root.canRead();
+    boolean writable = root != null && root.canWrite();
+
+    boolean committed = prefs.edit()
+        .putString("game_tree_uri", uri.toString())
+        .putString("game_tree_status", readable ? "granted" : "unreadable")
+        .putString("game_tree_permission_mode", permissionMode)
+        .putInt("game_tree_persisted_flags", persistedFlags)
+        .putString(
+            "game_tree_error",
+            readable
+                ? warning
+                : "The selected folder was returned, but Android reports that it is not readable."
+        )
+        .commit();
+
+    if (!committed) {
+      prefs.edit()
+          .putString("game_tree_status", "storage-error")
+          .putString("game_tree_error", "ThorVault could not save the selected folder URI.")
+          .apply();
+    }
+
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     notifyFolderChanged();
   }
 
@@ -326,6 +386,7 @@ public final class MainActivity extends ComponentActivity {
 
   private String folderStatusJson() {
     try {
+<<<<<<< HEAD
       List<String> uris = getStoredGameTreeUris();
       JSONArray locations = new JSONArray();
       JSONObject primary = null;
@@ -369,6 +430,38 @@ public final class MainActivity extends ComponentActivity {
       }
       return result.toString();
     } catch (Exception error) { return failure(error); }
+=======
+      JSONObject result = new JSONObject();
+      String value = prefs.getString("game_tree_uri", "");
+      result.put("ok", true);
+      result.put("stored", !value.isEmpty());
+      result.put("status", prefs.getString("game_tree_status", value.isEmpty() ? "none" : "stored"));
+      result.put("error", prefs.getString("game_tree_error", ""));
+      result.put("permissionMode", prefs.getString("game_tree_permission_mode", "none"));
+
+      if (value.isEmpty()) {
+        result.put("folderUri", JSONObject.NULL);
+        result.put("persistedRead", false);
+        result.put("persistedWrite", false);
+        result.put("readable", false);
+        result.put("writable", false);
+        return result.toString();
+      }
+
+      Uri uri = Uri.parse(value);
+      DocumentFile root = DocumentFile.fromTreeUri(this, uri);
+      result.put("folderUri", value);
+      result.put("folderName", root == null ? JSONObject.NULL : root.getName());
+      result.put("exists", root != null && root.exists());
+      result.put("readable", root != null && root.canRead());
+      result.put("writable", root != null && root.canWrite());
+      result.put("persistedRead", hasPersistedReadPermission(uri));
+      result.put("persistedWrite", hasPersistedWritePermission(uri));
+      return result.toString();
+    } catch (Exception error) {
+      return failure(error);
+    }
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
   }
 
   private final class Bridge {
@@ -381,6 +474,7 @@ public final class MainActivity extends ComponentActivity {
       });
     }
 
+<<<<<<< HEAD
     @JavascriptInterface public String getFolderStatus() { return folderStatusJson(); }
 
     @JavascriptInterface public String forgetGameLocation(String uriText) {
@@ -435,6 +529,109 @@ public final class MainActivity extends ComponentActivity {
     @JavascriptInterface public void cancelGamesScan(String requestId) {
       AtomicBoolean cancelled = activeScans.get(requestId);
       if (cancelled != null) cancelled.set(true);
+=======
+    @JavascriptInterface public String getFolderStatus() {
+      return folderStatusJson();
+    }
+
+    @JavascriptInterface public String forgetGameFolder() {
+      try {
+        String current = prefs.getString("game_tree_uri", "");
+        if (!current.isEmpty()) {
+          Uri uri = Uri.parse(current);
+          int flags = 0;
+          if (hasPersistedReadPermission(uri)) flags |= Intent.FLAG_GRANT_READ_URI_PERMISSION;
+          if (hasPersistedWritePermission(uri)) flags |= Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
+          if (flags != 0) {
+            try {
+              getContentResolver().releasePersistableUriPermission(uri, flags);
+            } catch (SecurityException ignored) {
+              // The provider may already have removed the grant.
+            }
+          }
+        }
+        prefs.edit()
+            .remove("game_tree_uri")
+            .remove("game_tree_status")
+            .remove("game_tree_error")
+            .remove("game_tree_permission_mode")
+            .remove("game_tree_persisted_flags")
+            .commit();
+        notifyFolderChanged();
+        return new JSONObject().put("ok", true).toString();
+      } catch (Exception error) {
+        return failure(error);
+      }
+    }
+
+    private String scanGamesJson() {
+      try {
+        JSONObject status = new JSONObject(folderStatusJson());
+        JSONObject result = new JSONObject()
+            .put("ok", true)
+            .put("folderStatus", status)
+            .put("folderUri", status.opt("folderUri"))
+            .put("folderName", status.opt("folderName"))
+            .put("persistedRead", status.optBoolean("persistedRead", false))
+            .put("persistedWrite", status.optBoolean("persistedWrite", false))
+            .put("readable", status.optBoolean("readable", false))
+            .put("writable", status.optBoolean("writable", false))
+            .put("permissionMode", status.optString("permissionMode", "none"))
+            .put("error", status.optString("error", ""));
+
+        String value = prefs.getString("game_tree_uri", "");
+        if (value.isEmpty()) {
+          return result
+              .put("games", new JSONArray())
+              .put("visitedCount", 0)
+              .put("ignoredCount", 0)
+              .put("maxDepthReached", 0)
+              .toString();
+        }
+
+        Uri uri = Uri.parse(value);
+        DocumentFile root = DocumentFile.fromTreeUri(MainActivity.this, uri);
+        if (root == null || !root.exists() || !root.canRead()) {
+          return result
+              .put("error", "The selected folder is stored, but Android cannot currently read it.")
+              .put("games", new JSONArray())
+              .toString();
+        }
+
+        List<JSONObject> games = new ArrayList<>();
+        ScanStats stats = new ScanStats();
+        scan(root, "", 0, games, stats);
+        return result
+            .put("folderUri", value)
+            .put("folderName", root.getName())
+            .put("games", new JSONArray(games))
+            .put("visitedCount", stats.visited)
+            .put("ignoredCount", stats.ignored)
+            .put("maxDepthReached", stats.maxDepth)
+            .put("scanLimitReached", stats.visited >= MAX_SCAN_VISITS)
+            .toString();
+      } catch (Exception error) {
+        return failure(error);
+      }
+    }
+
+    @JavascriptInterface public String scanGames() {
+      return scanGamesJson();
+    }
+
+    @JavascriptInterface public void scanGamesAsync(String requestId) {
+      new Thread(() -> {
+        String result = scanGamesJson();
+        webView.post(() -> webView.evaluateJavascript(
+            "if(window.thorVaultNativeScanResult){" +
+            "window.thorVaultNativeScanResult(" +
+            JSONObject.quote(requestId) + "," +
+            JSONObject.quote(result) +
+            ");}",
+            null
+        ));
+      }, "ThorVault-Scan").start();
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     }
 
     @JavascriptInterface public String readSave(String uriText) {
@@ -499,10 +696,20 @@ public final class MainActivity extends ComponentActivity {
               "The generated save is identical to the current device save. Nothing was written."
           );
 
+<<<<<<< HEAD
         Uri treeUri = findTreeForDocument(target);
         if (treeUri == null)
           throw new IllegalStateException("The active save is not inside a remembered scan location. Add its parent folder again before applying.");
         DocumentFile root = DocumentFile.fromTreeUri(MainActivity.this, treeUri);
+=======
+        String tree = prefs.getString("game_tree_uri", "");
+        if (tree.isEmpty())
+          throw new IllegalStateException("No writable Android game folder is granted.");
+
+        DocumentFile root = DocumentFile.fromTreeUri(
+            MainActivity.this, Uri.parse(tree)
+        );
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
         if (root == null || !root.canWrite())
           throw new IllegalStateException("Granted folder is not writable.");
 
@@ -512,6 +719,7 @@ public final class MainActivity extends ComponentActivity {
         if (backups == null)
           throw new IllegalStateException("Could not create backup folder.");
 
+<<<<<<< HEAD
         BackupRecord backupRecord = createVerifiedBackup(backups, target, original, "pre-apply-original");
         String backupName = backupRecord.name;
         String backupSha = backupRecord.sha256;
@@ -550,6 +758,49 @@ public final class MainActivity extends ComponentActivity {
           throw new IllegalStateException(
               "Apply failed; the original save was restored and verified. Backup: " + backupName,
               writeError
+=======
+        String stamp = new SimpleDateFormat(
+            "yyyyMMdd-HHmmss", Locale.US
+        ).format(new Date());
+        String safeTargetName = name(target)
+            .replaceAll("[^A-Za-z0-9._-]+", "-");
+        String backupName =
+            stamp + "-" + safeTargetName + ".bak";
+
+        DocumentFile backup = backups.createFile(
+            "application/octet-stream", backupName
+        );
+        if (backup == null)
+          throw new IllegalStateException("Could not create backup.");
+
+        write(backup.getUri(), original);
+
+        byte[] backupCheck = read(backup.getUri());
+        String backupSha = sha(backupCheck);
+        if (!originalSha.equals(backupSha)) {
+          try { backup.delete(); } catch (Exception ignored) {}
+          throw new IllegalStateException(
+              "Backup verification failed. The active save was not modified."
+          );
+        }
+
+        write(target, replacement);
+        byte[] written = read(target);
+        String actualSha = sha(written);
+
+        if (!expectedSha.equals(actualSha) ||
+            written.length != replacement.length) {
+          write(target, original);
+          byte[] rollback = read(target);
+          String rollbackSha = sha(rollback);
+          if (!originalSha.equals(rollbackSha))
+            throw new IllegalStateException(
+                "Write verification failed and automatic rollback could not be verified. " +
+                "Use the backup file: " + backupName
+            );
+          throw new IllegalStateException(
+              "Write verification failed; the original save was restored and verified."
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
           );
         }
 
@@ -557,7 +808,11 @@ public final class MainActivity extends ComponentActivity {
         prefs.edit()
             .putString("last_apply_target_uri", uriText)
             .putString("last_apply_target_name", name(target))
+<<<<<<< HEAD
             .putString("last_apply_backup_uri", backupRecord.uri)
+=======
+            .putString("last_apply_backup_uri", backup.getUri().toString())
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
             .putString("last_apply_backup_name", backupName)
             .putString("last_apply_original_sha256", originalSha)
             .putString("last_apply_written_sha256", actualSha)
@@ -569,7 +824,11 @@ public final class MainActivity extends ComponentActivity {
             .put("ok", true)
             .put("targetName", name(target))
             .put("backupName", backupName)
+<<<<<<< HEAD
             .put("backupUri", backupRecord.uri)
+=======
+            .put("backupUri", backup.getUri().toString())
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
             .put("originalSha256", originalSha)
             .put("backupSha256", backupSha)
             .put("writtenSha256", actualSha)
@@ -648,6 +907,7 @@ public final class MainActivity extends ComponentActivity {
         byte[] current = read(target);
         String currentSha = sha(current);
 
+<<<<<<< HEAD
         Uri treeUri = findTreeForDocument(target);
         if (treeUri == null)
           throw new IllegalStateException("The target save's parent folder permission is no longer available. Re-add that scan location before restoring.");
@@ -685,6 +945,58 @@ public final class MainActivity extends ComponentActivity {
           throw new IllegalStateException(
               "Restore failed; the save that was present before restore was restored and verified. Safety backup: " + beforeRestoreName,
               restoreError
+=======
+        String tree = prefs.getString("game_tree_uri", "");
+        DocumentFile root = DocumentFile.fromTreeUri(
+            MainActivity.this, Uri.parse(tree)
+        );
+        if (root == null || !root.canWrite())
+          throw new IllegalStateException("Granted folder is not writable.");
+        DocumentFile backups = root.findFile("ThorVault Backups");
+        if (backups == null)
+          backups = root.createDirectory("ThorVault Backups");
+        if (backups == null)
+          throw new IllegalStateException("Could not access backup folder.");
+
+        String stamp = new SimpleDateFormat(
+            "yyyyMMdd-HHmmss", Locale.US
+        ).format(new Date());
+        String safeTargetName = name(target)
+            .replaceAll("[^A-Za-z0-9._-]+", "-");
+        String beforeRestoreName =
+            stamp + "-" + safeTargetName + ".before-restore.bak";
+        DocumentFile beforeRestore = backups.createFile(
+            "application/octet-stream", beforeRestoreName
+        );
+        if (beforeRestore == null)
+          throw new IllegalStateException(
+              "Could not create the pre-restore safety backup."
+          );
+
+        write(beforeRestore.getUri(), current);
+        String preRestoreSha = sha(read(beforeRestore.getUri()));
+        if (!currentSha.equals(preRestoreSha)) {
+          try { beforeRestore.delete(); } catch (Exception ignored) {}
+          throw new IllegalStateException(
+              "Pre-restore safety backup verification failed. Restore was cancelled."
+          );
+        }
+
+        write(target, backupData);
+        byte[] restored = read(target);
+        String restoredSha = sha(restored);
+        if (!backupSha.equals(restoredSha) ||
+            restored.length != backupData.length) {
+          write(target, current);
+          String rollbackSha = sha(read(target));
+          if (!currentSha.equals(rollbackSha))
+            throw new IllegalStateException(
+                "Restore verification failed and rollback could not be verified. " +
+                "Use " + beforeRestoreName + " manually."
+            );
+          throw new IllegalStateException(
+              "Restore verification failed; the pre-restore save was put back."
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
           );
         }
 
@@ -693,10 +1005,13 @@ public final class MainActivity extends ComponentActivity {
             .putLong("last_restore_timestamp", restoredAt)
             .putString("last_restore_sha256", restoredSha)
             .putString("last_restore_safety_backup_name", beforeRestoreName)
+<<<<<<< HEAD
             .remove("last_apply_target_uri").remove("last_apply_target_name")
             .remove("last_apply_backup_uri").remove("last_apply_backup_name")
             .remove("last_apply_original_sha256").remove("last_apply_written_sha256")
             .remove("last_apply_byte_length").remove("last_apply_timestamp")
+=======
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
             .commit();
 
         return new JSONObject()
@@ -915,6 +1230,7 @@ public final class MainActivity extends ComponentActivity {
     }
   }
 
+<<<<<<< HEAD
   private String scanGamesJson(String selectedUrisJson, ScanRun suppliedRun) {
     ScanRun run = suppliedRun == null ? new ScanRun() : suppliedRun;
     try {
@@ -1032,10 +1348,24 @@ public final class MainActivity extends ComponentActivity {
       ScanStats stats, ScanRun run, String treeUri) throws Exception {
     if ((run.cancelled != null && run.cancelled.get()) || depth > MAX_SCAN_DEPTH ||
         stats.visited >= MAX_SCAN_VISITS || out.size() >= MAX_SCAN_RESULTS) return;
+=======
+  private void scan(
+      DocumentFile dir,
+      String path,
+      int depth,
+      List<JSONObject> out,
+      ScanStats stats
+  ) throws Exception {
+    if (depth > MAX_SCAN_DEPTH ||
+        stats.visited >= MAX_SCAN_VISITS ||
+        out.size() >= MAX_SCAN_RESULTS) return;
+
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     stats.maxDepth = Math.max(stats.maxDepth, depth);
     DocumentFile[] children = dir.listFiles();
     List<DocumentFile> directories = new ArrayList<>();
     List<DocumentFile> files = new ArrayList<>();
+<<<<<<< HEAD
     for (DocumentFile child : children) {
       if (child.isDirectory()) directories.add(child); else files.add(child);
     }
@@ -1193,10 +1523,133 @@ public final class MainActivity extends ComponentActivity {
     if (n.endsWith(".dat")) return "Named save data (.dat)";
     if (n.endsWith(".bin")) return "Save-path binary candidate (.bin)";
     return "Possible emulator save";
+=======
+
+    for (DocumentFile child : children) {
+      if (child.isDirectory()) directories.add(child);
+      else files.add(child);
+    }
+
+    Collections.sort(directories, new Comparator<DocumentFile>() {
+      @Override public int compare(
+          DocumentFile left,
+          DocumentFile right
+      ) {
+        String leftName = left.getName() == null ? "" : left.getName();
+        String rightName = right.getName() == null ? "" : right.getName();
+        return Integer.compare(
+            directoryPriority(leftName, path),
+            directoryPriority(rightName, path)
+        );
+      }
+    });
+
+    for (DocumentFile file : files) {
+      if (stats.visited >= MAX_SCAN_VISITS ||
+          out.size() >= MAX_SCAN_RESULTS) return;
+      stats.visited++;
+      String name = file.getName() == null ? "unnamed" : file.getName();
+      String relative = path.isEmpty() ? name : path + "/" + name;
+      if (looksLikeSave(name, file.length(), relative)) {
+        out.add(new JSONObject()
+            .put("uri", file.getUri().toString())
+            .put("name", name)
+            .put("relativePath", relative)
+            .put("size", file.length())
+            .put("lastModified", file.lastModified())
+            .put("kind", classify(name, relative))
+            .put("label", saveLabel(name, relative)));
+      } else {
+        stats.ignored++;
+      }
+    }
+
+    for (DocumentFile directory : directories) {
+      if (stats.visited >= MAX_SCAN_VISITS ||
+          out.size() >= MAX_SCAN_RESULTS) return;
+      stats.visited++;
+      String name = directory.getName() == null
+          ? "unnamed"
+          : directory.getName();
+      if (name.equalsIgnoreCase("ThorVault Backups")) continue;
+      String relative = path.isEmpty() ? name : path + "/" + name;
+      scan(directory, relative, depth + 1, out, stats);
+    }
+  }
+
+  private static int directoryPriority(
+      String name,
+      String parentPath
+  ) {
+    String value = (parentPath + "/" + name).toLowerCase(Locale.ROOT);
+    if (value.contains("nintendo 3ds") ||
+        value.contains("/title") ||
+        value.contains("/data") ||
+        value.contains("/sdmc") ||
+        value.contains("/users")) return 0;
+    if (value.contains("azahar") ||
+        value.contains("citra") ||
+        value.contains("melonds") ||
+        value.contains("/saves") ||
+        value.contains("/save")) return 1;
+    if (value.contains("/3ds") ||
+        value.contains("/nds") ||
+        value.contains("/gba")) return 2;
+    return 5;
+  }
+
+  private static boolean looksLikeSave(
+      String name,
+      long size,
+      String relativePath
+  ) {
+    if (size < 16 * 1024 || size > MAX_FILE) return false;
+    String n = name.toLowerCase(Locale.ROOT);
+    String p = relativePath.toLowerCase(Locale.ROOT);
+
+    if (n.equals("main")) return true;
+    if (n.endsWith(".sav") ||
+        n.endsWith(".dsv") ||
+        n.endsWith(".srm")) return true;
+
+    boolean saveNamed =
+        n.equals("save.dat") ||
+        n.equals("savedata.dat") ||
+        n.equals("main.dat") ||
+        n.equals("save.bin") ||
+        n.equals("savedata.bin") ||
+        n.equals("main.bin");
+
+    boolean savePath =
+        (p.contains("/save/") || p.contains("/saves/")) &&
+        (n.contains("save") || n.startsWith("main."));
+
+    return saveNamed || savePath;
+  }
+
+  private static String classify(String name, String path) {
+    String n = name.toLowerCase(Locale.ROOT);
+    String p = path.toLowerCase(Locale.ROOT);
+    if (n.equals("main") &&
+        (p.contains("azahar") ||
+         p.contains("citra") ||
+         p.contains("nintendo 3ds") ||
+         p.contains("/title/00040000/"))) {
+      return "Nintendo 3DS active main";
+    }
+    if (n.endsWith(".dsv"))
+      return "DeSmuME Nintendo DS save";
+    if (n.endsWith(".srm"))
+      return "RetroArch battery save";
+    if (n.endsWith(".sav"))
+      return "GBA / Nintendo DS save";
+    return "Potential emulator save";
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
   }
 
   private static String saveLabel(String name, String path) {
     String lowerPath = path.toLowerCase(Locale.ROOT);
+<<<<<<< HEAD
     if (name.equalsIgnoreCase("main") && (lowerPath.contains("/title/00040000/") || lowerPath.contains("00040000"))) return "Nintendo 3DS main";
     return name;
   }
@@ -1258,6 +1711,15 @@ public final class MainActivity extends ComponentActivity {
     return new BackupRecord(backupName, backup.getUri().toString(), actualSha);
   }
 
+=======
+    if (name.equalsIgnoreCase("main") &&
+        lowerPath.contains("/title/00040000/")) {
+      return "Nintendo 3DS main";
+    }
+    return name;
+  }
+
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
   private byte[] read(Uri uri) throws Exception {
     try (InputStream in = getContentResolver().openInputStream(uri);
          ByteArrayOutputStream out = new ByteArrayOutputStream()) {

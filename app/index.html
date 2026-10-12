@@ -160,6 +160,7 @@
     .android-game-card.selected{border-color:#48dfb188}
     .android-game-card code{overflow-wrap:anywhere}
     .android-game-card-actions{display:flex;gap:.4rem;flex-wrap:wrap}
+<<<<<<< HEAD
     .android-scan-location-tools{display:flex;align-items:center;justify-content:space-between;gap:.65rem;flex-wrap:wrap;margin:.65rem 0}
     .android-scan-location-tools p{margin:0}
     .android-scan-location-tools .actions{margin:0}
@@ -179,6 +180,8 @@
     .android-duplicate-warning{margin:.35rem 0 0;padding:.4rem .5rem;border-left:3px solid #ffe274;color:#ffeaa1;background:#ffe2740a;font-size:.78rem;line-height:1.35}
     body.thorvault-native :is(button,a[href],input,select,textarea,[tabindex]):focus{outline:3px solid var(--mint)!important;outline-offset:3px!important;box-shadow:0 0 0 4px #48dfb12b!important}
     body.thorvault-native nav .tab:focus{position:relative;z-index:101;box-shadow:inset 0 0 0 2px var(--mint)!important}
+=======
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     .archive-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.65rem;align-items:center;padding:.7rem;border:1px solid var(--line);border-radius:13px;background:#111a30}
     .archive-actions{display:flex;gap:.35rem;flex-wrap:wrap}
     .manager-controls{display:flex;gap:.65rem;align-items:end;flex-wrap:wrap;padding:.85rem;border:1px solid var(--line);border-radius:16px;background:#0d1425}
@@ -406,9 +409,14 @@
     body[data-tv-layout="phone"] .box-navigation{grid-template-columns:38px minmax(0,1fr) 38px;min-width:0}body[data-tv-layout="phone"] .android-game-card{grid-template-columns:1fr}body[data-tv-layout="phone"] .android-game-card-actions button{width:100%}body[data-tv-layout="phone"] .slot-meta{display:none}body[data-tv-layout="phone"] .box-pane{padding:.55rem}
     body[data-tv-layout="handheld"] .manager-workspace{grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}body[data-tv-layout="handheld"] .details-queue{grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}body[data-tv-layout="handheld"][data-tv-orientation="portrait"] .manager-workspace,body[data-tv-layout="handheld"][data-tv-orientation="portrait"] .details-queue{grid-template-columns:1fr}body[data-tv-layout="handheld"] .box-pane{padding:.65rem}body[data-tv-layout="handheld"] .box-pane-head{align-items:flex-start}body[data-tv-layout="handheld"] .manager-controls{gap:.45rem;padding:.65rem}body[data-tv-layout="handheld"] .manager-controls label{min-width:120px}body[data-tv-layout="handheld"] .slot-meta{display:none}
     @media(max-width:620px){nav{gap:.15rem;padding:.35rem .25rem}nav button{padding:.35rem .1rem;font-size:clamp(.58rem,2.7vw,.74rem)}.client-panel-head{align-items:stretch;flex-direction:column}.client-panel-head button{width:100%}}
+<<<<<<< HEAD
     @media(max-width:520px){.android-location-row{grid-template-columns:minmax(0,1fr)}.android-location-remove{justify-self:end}.scan-activity{grid-template-columns:auto minmax(0,1fr)}#androidCancelScan{grid-column:1/-1;width:100%}.android-scan-location-tools{align-items:flex-start;flex-direction:column}.android-scan-location-tools .actions{width:100%}.android-scan-location-tools .actions button{flex:1}}
   
     .scan-activity{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.65rem;margin:.65rem 0;padding:.7rem;border:1px solid #4f8cff55;border-radius:13px;background:#0d1830;color:#dfe8ff;font-weight:700}
+=======
+  
+    .scan-activity{display:flex;align-items:center;justify-content:center;gap:.55rem;margin:.65rem 0;padding:.65rem;border:1px solid #4f8cff55;border-radius:13px;background:#0d1830;color:#dfe8ff;font-weight:700}
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     .mini-spinner{display:inline-block;width:15px;height:15px;flex:0 0 15px;border-radius:50%;border:2px solid #ffffff33;border-top-color:var(--mint);animation:thor-spin .7s linear infinite}
 
       .manager-sync-note{margin:.7rem 0 0;padding:.65rem .75rem;border:1px solid #ffe27444;border-radius:13px;background:#ffe2740c;color:#f8eec0}
@@ -694,6 +702,7 @@
             <h2>My Pokémon games</h2>
             <p class="meta">Grant the emulator root once. ThorVault remembers it, scans for save candidates, and lets you open the active save directly.</p>
           </div>
+<<<<<<< HEAD
           <button id="androidScanGames">Scan selected folders</button>
         </div>
 
@@ -715,6 +724,19 @@
         </div>
         <div id="androidFolderLocations" class="android-folder-locations">
           <p class="empty">No scan locations yet. Add the ROMs folder and any emulator save folders.</p>
+=======
+          <button id="androidScanGames">Rescan</button>
+        </div>
+
+        <div class="android-game-actions">
+          <button id="androidGrantFolder" class="primary">Choose game folder</button>
+          <button id="androidForgetFolder">Forget folder</button>
+        </div>
+
+        <div id="androidFolderStatus" class="shared-vault-status warn">
+          <strong>No folder granted.</strong>
+          <p class="meta">Choose the highest emulator folder Android allows, so one scan can find several games.</p>
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
         </div>
         <details id="androidFolderDiagnostics" class="android-folder-diagnostics">
           <summary>Folder permission diagnostics</summary>
@@ -724,10 +746,17 @@
         <details class="android-discovery-help">
           <summary>How automatic discovery works</summary>
           <div class="android-discovery-steps">
+<<<<<<< HEAD
             <p><strong>1. Add folders.</strong> Android does not let ThorVault search the entire device. Add each accessible ROM, emulator, or save folder that may contain battery saves.</p>
             <p><strong>2. Select locations to scan.</strong> Folder choices and scan checkboxes are remembered. Scan only selected locations or deselect large folders temporarily.</p>
             <p><strong>3. Watch progress.</strong> ThorVault reports entries checked and candidates found as it runs. You can cancel, and partial results are retained when you cancel or hit a safety limit.</p>
             <p><strong>4. Review candidates.</strong> ThorVault uses filename, path, system and emulator patterns, plus exact SHA-256 fingerprints to flag likely saves and duplicate contents. Detection is a hint; review each result before opening it.</p>
+=======
+            <p><strong>1. Grant a folder.</strong> Android does not let ThorVault search the entire device. You choose one accessible emulator, ROM, or saves folder.</p>
+            <p><strong>2. ThorVault remembers it.</strong> Android retains the permission after app and device restarts.</p>
+            <p><strong>3. ThorVault scans inside it.</strong> It searches subfolders for files named <code>main</code> or ending in <code>.sav</code>, <code>.dsv</code>, <code>.dat</code>, or <code>.bin</code>.</p>
+            <p><strong>4. Open a result.</strong> The server identifies the actual Pokémon game; the filename alone is only a candidate.</p>
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
           </div>
         </details>
 
@@ -741,7 +770,11 @@
         </article>
 
         <div class="android-offline-note">
+<<<<<<< HEAD
           <strong>Offline:</strong> folder scanning and save parsing use the bundled local engine. Vault sync is optional; Apply creates and verifies a backup before writing, then verifies the written save.
+=======
+          <strong>Offline:</strong> the app, local Vault, folder scanning and Apply remain available. Parsing a newly selected save and generating changes still require your self-hosted engine in this alpha.
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
         </div>
 
         <div class="android-discovered-head">
@@ -751,6 +784,7 @@
           </div>
           <span id="androidGameCount" class="pill muted-pill">0 found</span>
         </div>
+<<<<<<< HEAD
         <div id="androidScanActivity" class="scan-activity hidden" role="status" aria-live="polite">
           <span class="mini-spinner" aria-hidden="true"></span>
           <div class="scan-activity-copy">
@@ -759,6 +793,11 @@
             <p id="androidScanProgressMeta" class="meta">Waiting for scan progress…</p>
           </div>
           <button id="androidCancelScan" type="button">Cancel scan</button>
+=======
+        <div id="androidScanActivity" class="scan-activity hidden">
+          <span class="mini-spinner" aria-hidden="true"></span>
+          <span>Scanning emulator folders…</span>
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
         </div>
         <div id="androidGameList" class="android-game-list">
           <p class="empty">No Android save candidates scanned.</p>

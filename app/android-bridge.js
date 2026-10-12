@@ -51,16 +51,20 @@
 
   var nativeScanRequests = new Map();
   var saveFingerprintRequests = new Map();
+<<<<<<< HEAD
   var activeScanRequestId = null;
   var scanLocationUris = [];
   var scanLocationsStatus = [];
   var scanInProgress = false;
+=======
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
 
   window.thorVaultNativeScanResult = function (requestId, rawResult) {
     var pending = nativeScanRequests.get(String(requestId));
     if (!pending) return;
     nativeScanRequests.delete(String(requestId));
     window.clearTimeout(pending.timer);
+<<<<<<< HEAD
     if (activeScanRequestId === String(requestId)) activeScanRequestId = null;
     pending.resolve(rawResult);
   };
@@ -103,6 +107,29 @@
         window.clearTimeout(pending.timer);
         nativeScanRequests.delete(requestId);
         activeScanRequestId = null;
+=======
+    pending.resolve(rawResult);
+  };
+
+  function requestNativeScan() {
+    return new Promise(function (resolve, reject) {
+      var requestId =
+        "scan-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+      var timer = window.setTimeout(function () {
+        nativeScanRequests.delete(requestId);
+        reject(new Error("The Android folder scan timed out."));
+      }, 90000);
+      nativeScanRequests.set(requestId, {
+        resolve:resolve,
+        reject:reject,
+        timer:timer
+      });
+      try {
+        window.ThorVaultNative.scanGamesAsync(requestId);
+      } catch (error) {
+        window.clearTimeout(timer);
+        nativeScanRequests.delete(requestId);
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
         reject(error);
       }
     });
@@ -188,6 +215,7 @@
   var selectedName = localStorage.getItem("thorvault-android-active-name") || "";
   var selectedGame = localStorage.getItem("thorvault-android-active-game") || "";
   var lastScanResult = null;
+<<<<<<< HEAD
   var lastScanCacheAt = 0;
   try {
     var cachedScan = JSON.parse(localStorage.getItem("thorvault-android-scan-results-v1") || "null");
@@ -205,6 +233,8 @@
       console.warn("ThorVault could not cache scan results; current-session results remain available.", error);
     }
   }
+=======
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
   var lastApplyInfo = null;
   var activeSaveSha256 = localStorage.getItem("thorvault-android-active-sha256") || "";
   var activeSaveLastModified = Number(localStorage.getItem("thorvault-android-active-last-modified") || 0);
@@ -229,6 +259,7 @@
     window.scrollTo({top:0, behavior:"smooth"});
   }
 
+<<<<<<< HEAD
   window.thorVaultHandleShoulderTab = function (direction) {
     var tabs = Array.prototype.slice.call(document.querySelectorAll("nav .tab"));
     if (!tabs.length) return;
@@ -298,6 +329,8 @@
     }
   };
 
+=======
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
   function renderActiveGame(message) {
     var panel = document.querySelector("#androidActiveGame");
     var loaded = {loaded:false, hasWorkingSave:false};
@@ -317,7 +350,11 @@
       selectedName || loaded.filename || selectedUri;
     var defaultState = loaded.loaded
       ? "Loaded and ready in Box Manager."
+<<<<<<< HEAD
       : "Selected. Open it to parse locally with the bundled Pokémon engine.";
+=======
+      : "Selected. Open it while connected to the server.";
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     if (activeSaveChangedExternally)
       defaultState = "The emulator save changed on device. Reload is required to see the newest party/boxes.";
     document.querySelector("#androidActiveGameState").textContent =
@@ -328,6 +365,7 @@
   function renderFolderDiagnostics(status) {
     var diagnostics = document.querySelector("#androidFolderDiagnosticsText");
     if (!diagnostics) return;
+<<<<<<< HEAD
     if (!status) { diagnostics.textContent = "No Android folder information yet."; return; }
     var locations = Array.isArray(status.locations) ? status.locations : [];
     if (locations.length) {
@@ -341,6 +379,10 @@
           "\n   Readable: " + Boolean(location.readable) +
           "\n   Writable: " + Boolean(location.writable);
       }).join("\n\n") + (status.error ? "\n\nMessage: " + status.error : "");
+=======
+    if (!status) {
+      diagnostics.textContent = "No Android folder information yet.";
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
       return;
     }
     diagnostics.textContent = [
@@ -356,6 +398,7 @@
     ].filter(Boolean).join("\n");
   }
 
+<<<<<<< HEAD
   function parseStoredScanUris() {
     try { return JSON.parse(localStorage.getItem("thorvault-android-scan-location-uris") || "[]"); }
     catch (_error) { return []; }
@@ -522,6 +565,9 @@
     if (button) { button.disabled = true; button.textContent = "Stopping…"; }
   }
 
+=======
+  
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
   function detectedGameLabel(game) {
     var text = String(
       (game && (game.relativePath || game.uri || game.name)) || ""
@@ -570,6 +616,7 @@ function showGames(result) {
     var count = document.querySelector("#androidGameCount");
     var folderStatus = result.folderStatus || result;
     renderFolderDiagnostics(folderStatus);
+<<<<<<< HEAD
     var locations = folderStatus.locations || result.locations || [];
     var games = (result.games || []).slice().sort(function (a, b) {
       if (a.uri === selectedUri) return -1;
@@ -619,6 +666,73 @@ function showGames(result) {
         "<code class='meta'>" + html(displayPath) + "</code>" + duplicateNotice + "</div><div class='android-game-card-actions'><button class='primary' data-native-uri='" + html(game.uri) +
         "' data-native-name='" + html(game.name) + "'>" + (selected ? "Reload" : "Open") + "</button></div></article>";
     }).join("");
+=======
+    var games = (result.games || []).slice().sort(function (a, b) {
+      if (a.uri === selectedUri) return -1;
+      if (b.uri === selectedUri) return 1;
+      return String(a.relativePath || a.name).localeCompare(String(b.relativePath || b.name));
+    });
+    count.textContent = games.length + " found";
+
+    if (!result.folderUri) {
+      status.className = "shared-vault-status warn";
+      status.innerHTML =
+        "<strong>No folder URI stored.</strong>" +
+        "<p class='meta'>" +
+        html(result.error || "Choose a folder and approve Android's permission prompt.") +
+        "</p>";
+      list.innerHTML = "<p class='empty'>No Android save candidates scanned.</p>";
+    
+      return;
+    }
+
+    if (result.error || result.readable === false) {
+      status.className = "shared-vault-status bad";
+      status.innerHTML =
+        "<strong>Folder selected, but unavailable</strong>" +
+        "<p class='meta'>" +
+        html(result.error || "Android cannot read the stored folder permission.") +
+        "</p>";
+      list.innerHTML = "<p class='empty'>Fix or forget this folder, then choose it again.</p>";
+      renderActiveGame();
+      return;
+    }
+
+    status.className = "shared-vault-status good";
+    status.innerHTML =
+      "<strong>Automatic discovery enabled</strong>" +
+      "<p class='meta'>" + html(result.folderName || result.folderUri) +
+      " · " + (result.persistedRead ? "persistent access" : "current-session access") +
+      (result.writable ? " · writable" : " · read-only") +
+      (result.visitedCount !== undefined
+        ? " · checked " + Number(result.visitedCount) + " items"
+        : "") + "</p>";
+
+    if (!games.length) {
+      list.innerHTML =
+        "<p class='empty'>No main, .sav, .dsv, .dat or .bin candidates were found in this folder.</p>";
+      renderActiveGame();
+      return;
+    }
+
+    list.innerHTML = games.map(function (game) {
+      var selected = game.uri === selectedUri;
+      return "<article class='android-game-card " + (selected ? "selected" : "") + "'>" +
+        "<div><div class='android-game-card-title'><strong>" +
+        html(selected && selectedGame
+          ? selectedGame
+          : (detectedGameLabel(game) || game.label || game.name)) +
+        "</strong>" + (selected ? "<span class='android-game-status'>" + (activeSaveChangedExternally ? "Changed" : "Active") + "</span>" : "") +
+        "</div><p class='meta'>" + html(detectedGameLabel(game) || game.kind || "Save candidate") +
+        " · " + Number(game.size || 0) + " bytes" + (game.lastModified ? " · modified " + new Date(Number(game.lastModified)).toLocaleString() : "") + "</p>" +
+        "<code class='meta'>" + html(game.relativePath || game.name) +
+        "</code></div><div class='android-game-card-actions'>" +
+        "<button class='primary' data-native-uri='" + html(game.uri) +
+        "' data-native-name='" + html(game.name) + "'>" +
+        (selected ? "Reload" : "Open") + "</button></div></article>";
+    }).join("");
+
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     document.querySelectorAll("[data-native-uri]").forEach(function (button) {
       button.onclick = function () {
         var originalText = button.textContent;
@@ -631,7 +745,14 @@ function showGames(result) {
             renderActiveGame("Open failed: " + error.message);
             setFolderPanel("bad", "Could not open save", error.message);
             window.alert(error.message);
+<<<<<<< HEAD
           }).finally(function () { button.disabled = false; button.textContent = originalText; });
+=======
+          }).finally(function () {
+            button.disabled = false;
+            button.textContent = originalText;
+          });
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
       };
     });
     renderActiveGame();
@@ -689,6 +810,7 @@ function showGames(result) {
     return true;
   }
 
+<<<<<<< HEAD
   async function scan() {
     if (scanInProgress) return null;
     scanInProgress = true;
@@ -742,6 +864,46 @@ function showGames(result) {
       scanInProgress = false;
       if (button) { button.disabled = false; button.textContent = originalText || "Scan selected folders"; }
       if (cancelButton) { cancelButton.disabled = false; cancelButton.textContent = "Cancel scan"; }
+=======
+  var scanInProgress = false;
+
+  async function scan() {
+    if (scanInProgress) return null;
+    scanInProgress = true;
+
+    var button = document.querySelector("#androidScanGames");
+    var activity = document.querySelector("#androidScanActivity");
+    var originalText = button ? button.textContent : "Rescan";
+
+    if (button) {
+      button.disabled = true;
+      button.innerHTML =
+        '<span class="mini-spinner" aria-hidden="true"></span> Rescanning…';
+    }
+    if (activity) activity.classList.remove("hidden");
+
+    setFolderPanel(
+      "warn",
+      "Scanning granted folder…",
+      "Checking emulator save folders, including deeply nested Azahar title data."
+    );
+
+    try {
+      var raw = await requestNativeScan();
+      var result = parse(raw, "Could not scan the granted Android folder.");
+      showGames(result);
+      await checkActiveSaveForChanges({autoReload:true, userInitiated:true});
+      return result;
+    } catch (error) {
+      setFolderPanel("bad", "Folder scan failed", error.message);
+      throw error;
+    } finally {
+      scanInProgress = false;
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalText || "Rescan";
+      }
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
       if (activity) activity.classList.add("hidden");
     }
   }
@@ -759,13 +921,23 @@ function showGames(result) {
     setSaveOpenOverlay(
       true,
       "Opening Pokémon save…",
+<<<<<<< HEAD
       "Reading " + pendingName + " locally with the bundled Pokémon engine…"
+=======
+      "Uploading " + pendingName + " to " +
+        (appApi().getSettings().serverUrl || "the configured server") + "…"
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     );
 
     var result = await appApi().loadAndroidSave(file, uri, fallbackName);
 
+<<<<<<< HEAD
     // Commit the new active selection only after local parsing and Box Manager accept it.
     // A failed switch keeps the previous save active.
+=======
+    // Commit the new active selection only after the server has parsed the save
+    // and Box Manager has accepted it. A failed switch keeps the previous save active.
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     selectedUri = uri;
     selectedName = result.filename || file.name || fallbackName || "main";
     selectedGame = result.game || selectedName;
@@ -952,7 +1124,10 @@ function showGames(result) {
       showApplyResult(result, "apply");
       appApi().notify("Save applied, backed up and verified.");
     } finally {
+<<<<<<< HEAD
       refreshLastApplyInfo();
+=======
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
       if (applyButton) {
         applyButton.disabled = false;
         applyButton.textContent = originalText || "Back up & Apply to device";
@@ -965,11 +1140,28 @@ function showGames(result) {
       if (rawStatus) {
         var status = typeof rawStatus === "string" ? JSON.parse(rawStatus) : rawStatus;
         renderFolderDiagnostics(status);
+<<<<<<< HEAD
         renderScanLocations(status);
         if (status.locations && status.locations.length) {
           setFolderPanel("good", "Scan locations remembered", status.locations.length + " folder(s) saved. Choose the locations, then tap Scan selected folders when ready.");
         } else if (!status.folderUri) setFolderPanel("warn", "No scan locations saved", status.error || "Add a folder to begin.");
       }
+=======
+        if (status.folderUri && status.readable) {
+          setFolderPanel(
+            "good",
+            "Folder permission stored",
+            (status.folderName || "Selected folder") +
+              (status.writable ? " · writable" : " · read-only")
+          );
+        } else if (!status.folderUri) {
+          setFolderPanel("warn", "No folder URI stored", status.error || "Choose a folder.");
+        }
+      }
+      scan().catch(function (error) {
+        console.warn("Folder rescan after permission change failed", error);
+      });
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     } catch (error) {
       setFolderPanel("bad", "Folder permission update failed", error.message);
       window.alert("Folder permission update failed: " + error.message);
@@ -977,6 +1169,7 @@ function showGames(result) {
   };
 
   document.querySelector("#androidGamePanel").classList.remove("hidden");
+<<<<<<< HEAD
   var gamesTab = document.querySelector('.tab[data-view="games"]');
   if (gamesTab) gamesTab.addEventListener("click", function () {
     if (lastScanResult) showGames(lastScanResult);
@@ -1014,6 +1207,58 @@ function showGames(result) {
       document.querySelector("#androidGameCount").textContent = "0 found";
       setFolderPanel("warn", "Scan locations forgotten", "Add a folder to scan Pokémon saves again.");
     } catch (error) { setFolderPanel("bad", "Could not forget locations", error.message); window.alert(error.message); }
+=======
+
+  var gamesTab = document.querySelector('.tab[data-view="games"]');
+  if (gamesTab) {
+    gamesTab.addEventListener("click", function () {
+      if (lastScanResult) showGames(lastScanResult);
+      renderActiveGame();
+    });
+  }
+  document.querySelector("#androidGrantFolder").onclick = function () {
+    window.ThorVaultNative.chooseGameFolder();
+  };
+  document.querySelector("#androidScanGames").onclick = function () {
+    scan().catch(function (error) {
+      window.alert(error.message);
+    });
+  };
+  document.querySelector("#androidForgetFolder").onclick = function () {
+    if (!window.confirm("Forget the currently granted Android folder?")) return;
+    try {
+      parse(
+        window.ThorVaultNative.forgetGameFolder(),
+        "Could not forget the folder."
+      );
+      setFolderPanel(
+        "warn",
+        "Folder forgotten",
+        "Choose a folder again to re-enable automatic discovery."
+      );
+      renderFolderDiagnostics({
+        folderUri:null,
+        folderName:null,
+        status:"none",
+        permissionMode:"none",
+        persistedRead:false,
+        persistedWrite:false,
+        readable:false,
+        writable:false
+      });
+      document.querySelector("#androidGameList").innerHTML =
+        "<p class='empty'>No Android save candidates scanned.</p>";
+      document.querySelector("#androidGameCount").textContent = "0 found";
+      window.setTimeout(function () {
+        scan().catch(function (error) {
+          console.warn("Post-forget scan failed", error);
+        });
+      }, 50);
+    } catch (error) {
+      setFolderPanel("bad", "Could not forget folder", error.message);
+      window.alert(error.message);
+    }
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
   };
 
   var applyFromManagerButton = document.querySelector("#androidApplyFromManager");
@@ -1061,6 +1306,7 @@ function showGames(result) {
 
   renderActiveGame();
   try {
+<<<<<<< HEAD
     var initialFolderStatus = parse(window.ThorVaultNative.getFolderStatus(), "Could not read Android folder status.");
     renderFolderDiagnostics(initialFolderStatus);
     renderScanLocations(initialFolderStatus);
@@ -1071,6 +1317,12 @@ function showGames(result) {
       lastScanResult.locations = initialFolderStatus.locations || [];
       showGames(lastScanResult);
     }
+=======
+    renderFolderDiagnostics(parse(
+      window.ThorVaultNative.getFolderStatus(),
+      "Could not read Android folder status."
+    ));
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     scan().catch(function (error) {
       console.warn("Initial Android scan failed", error);
     });

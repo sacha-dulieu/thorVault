@@ -10,13 +10,18 @@ permissions:
 jobs:
   build-apk:
     name: Build Android APK with bundled offline engine
+<<<<<<< HEAD
     runs-on: ubuntu-24.04
+=======
+    runs-on: ubuntu-latest
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
     timeout-minutes: 45
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v6
 
+<<<<<<< HEAD
       - name: Validate JavaScript and bundled Android assets
         run: |
           node --check app/android-bridge.js
@@ -24,6 +29,8 @@ jobs:
           cmp app/index.html android/app/src/main/assets/www/index.html
           cmp app/android-bridge.js android/app/src/main/assets/www/android-bridge.js
 
+=======
+>>>>>>> 9c549e5eb7a26d8f6ead0c72be2237dd76fbd400
       - name: Set up Java for Android build
         uses: actions/setup-java@v5
         with:
