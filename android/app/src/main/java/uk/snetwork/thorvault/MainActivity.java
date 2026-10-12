@@ -138,13 +138,13 @@ public final class MainActivity extends ComponentActivity {
     settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
     settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
     settings.setUserAgentString(
-        settings.getUserAgentString() + " ThorVaultAndroid/0.12.22"
+        settings.getUserAgentString() + " ThorVaultAndroid/0.12.23"
     );
     String bundledVersion = prefs.getString("web_asset_version", "");
-    if (!"0.12.22".equals(bundledVersion)) {
+    if (!"0.12.23".equals(bundledVersion)) {
       webView.clearCache(true);
       webView.clearHistory();
-      prefs.edit().putString("web_asset_version", "0.12.22").apply();
+      prefs.edit().putString("web_asset_version", "0.12.23").apply();
     }
 
     WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
@@ -169,7 +169,7 @@ public final class MainActivity extends ComponentActivity {
       }
     });
     webView.addJavascriptInterface(new Bridge(), "ThorVaultNative");
-    webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=1222");
+    webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=1223");
   }
 
   @Override public boolean dispatchKeyEvent(KeyEvent event) {
@@ -191,6 +191,18 @@ public final class MainActivity extends ComponentActivity {
         webView.evaluateJavascript(
             "if(window.thorVaultMoveControllerFocus){window.thorVaultMoveControllerFocus(" +
             JSONObject.quote(direction) + ");}", null
+        );
+        return true;
+      }
+      if (code == KeyEvent.KEYCODE_BUTTON_A || code == KeyEvent.KEYCODE_DPAD_CENTER) {
+        webView.evaluateJavascript(
+            "if(window.thorVaultControllerActivate){window.thorVaultControllerActivate();}", null
+        );
+        return true;
+      }
+      if (code == KeyEvent.KEYCODE_BUTTON_B || code == KeyEvent.KEYCODE_ESCAPE) {
+        webView.evaluateJavascript(
+            "if(window.thorVaultControllerBack){window.thorVaultControllerBack();}", null
         );
         return true;
       }
@@ -754,7 +766,7 @@ public final class MainActivity extends ComponentActivity {
           connection.setRequestProperty(key, headers.optString(key, ""));
         }
         connection.setRequestProperty(
-            "X-ThorVault-Client-Version", "0.12.22"
+            "X-ThorVault-Client-Version", "0.12.23"
         );
         connection.setRequestProperty("X-ThorVault-Api-Version", "1");
         connection.setRequestProperty(
@@ -1101,14 +1113,31 @@ public final class MainActivity extends ComponentActivity {
 
   private static boolean looksLikeSave(String name, long size, String relativePath) {
     if (size < 16 * 1024 || size > MAX_FILE) return false;
-    String n = name.toLowerCase(Locale.ROOT);
-    String p = relativePath.toLowerCase(Locale.ROOT);
-    if (n.endsWith(".bak") || n.endsWith(".backup") || n.endsWith(".old") || n.endsWith(".tmp") || n.endsWith(".state") || n.endsWith(".savestate")) return false;
-    if (n.equals("main")) return p.contains("/title/") || p.contains("/save/") || p.contains("/saves/") || p.contains("azahar") || p.contains("citra") || p.contains("nintendo 3ds") || p.contains("melonds") || p.contains("melon ds") || p.contains("00040000") || p.contains("00000001") || p.contains("sdmc");
-    if (n.endsWith(".sav") || n.endsWith(".dsv") || n.endsWith(".srm")) return true;
-    boolean saveNamed = n.equals("save.dat") || n.equals("savedata.dat") || n.equals("main.dat") || n.equals("save.bin") || n.equals("savedata.bin") || n.equals("main.bin") || n.equals("pokemon.sav");
-    boolean savePath = (p.contains("/save/") || p.contains("/saves/") || p.contains("/battery/")) && (n.contains("save") || n.startsWith("main.") || n.endsWith(".bin") || n.endsWith(".dat"));
-    return saveNamed || savePath;
+    String n = name == null ? "" : name.toLowerCase(Locale.ROOT);
+    String p = relativePath == null ? "" : relativePath.toLowerCase(Locale.ROOT);
+    if (n.endsWith(".bak") || n.endsWith(".backup") || n.endsWith(".old") ||
+        n.endsWith(".tmp") || n.endsWith(".state") || n.endsWith(".savestate")) return false;
+
+    boolean candidate = false;
+    if (n.equals("main")) {
+      candidate = p.contains("/title/") || p.contains("/save/") || p.contains("/saves/") ||
+          p.contains("azahar") || p.contains("citra") || p.contains("nintendo 3ds") ||
+          p.contains("melonds") || p.contains("melon ds") || p.contains("00040000") ||
+          p.contains("00000001") || p.contains("sdmc");
+    } else if (n.endsWith(".sav") || n.endsWith(".dsv") || n.endsWith(".srm")) {
+      candidate = true;
+    } else {
+      boolean saveNamed = n.equals("save.dat") || n.equals("savedata.dat") || n.equals("main.dat") ||
+          n.equals("save.bin") || n.equals("savedata.bin") || n.equals("main.bin") || n.equals("pokemon.sav");
+      boolean savePath = (p.contains("/save/") || p.contains("/saves/") || p.contains("/battery/")) &&
+          (n.contains("save") || n.startsWith("main.") || n.endsWith(".bin") || n.endsWith(".dat"));
+      candidate = saveNamed || savePath;
+    }
+
+    // This app is a Pokémon save manager, not a general emulator save browser.
+    // A candidate must be associated with a known supported Pokémon game, either
+    // by its 3DS title ID or by a recognisable game name in its file/folder path.
+    return candidate && detectGame(name, relativePath) != null;
   }
 
   private static String detectEmulator(String name, String path) {
@@ -1146,32 +1175,43 @@ public final class MainActivity extends ComponentActivity {
 
   private static String detectGame(String name, String path) {
     String p = ((path == null ? "" : path) + "/" + (name == null ? "" : name)).toLowerCase(Locale.ROOT);
-    String[][] known = {
-      {"0011c400", "Pokémon Omega Ruby"}, {"0011c500", "Pokémon Alpha Sapphire"},
-      {"0004000000055e00", "Pokémon X"}, {"0004000000055f00", "Pokémon Y"},
-      {"00040000001b5100", "Pokémon Sun"}, {"00040000001b5000", "Pokémon Moon"},
-      {"00040000001b5200", "Pokémon Ultra Sun"}, {"00040000001b5300", "Pokémon Ultra Moon"},
+
+    // In Nintendo 3DS user save-data paths, the low title-ID portion appears
+    // below title/00040000/. Match the stable game-family prefix so regional
+    // variants that differ in the final byte are recognised as the same game.
+    String[][] titleIds = {
+      {"00055d", "Pokémon X"}, {"00055e", "Pokémon Y"},
+      {"0011c4", "Pokémon Omega Ruby"}, {"0011c5", "Pokémon Alpha Sapphire"},
+      {"001648", "Pokémon Sun"}, {"00175e", "Pokémon Moon"},
+      {"001b50", "Pokémon Ultra Sun"}, {"001b51", "Pokémon Ultra Moon"}
+    };
+    for (String[] entry : titleIds) {
+      if (p.contains(entry[0])) return entry[1];
+    }
+
+    // Normalise accents and punctuation in emulator filenames and parent folders.
+    String normalized = p.replace("é", "e").replace("è", "e")
+        .replaceAll("[^a-z0-9]+", " ").trim().replaceAll("\\s+", " ");
+    String[][] phrases = {
       {"omega ruby", "Pokémon Omega Ruby"}, {"alpha sapphire", "Pokémon Alpha Sapphire"},
       {"ultra sun", "Pokémon Ultra Sun"}, {"ultra moon", "Pokémon Ultra Moon"},
-      {"white 2", "Pokémon White 2"}, {"black 2", "Pokémon Black 2"},
-      {"white version", "Pokémon White"}, {"black version", "Pokémon Black"},
-      {"platinum", "Pokémon Platinum"}, {"heartgold", "Pokémon HeartGold"},
-      {"soulsilver", "Pokémon SoulSilver"}, {"fire red", "Pokémon FireRed"},
-      {"leaf green", "Pokémon LeafGreen"}, {"emerald version", "Pokémon Emerald"},
-      {"crystal version", "Pokémon Crystal"}, {"gold version", "Pokémon Gold"},
-      {"silver version", "Pokémon Silver"}, {"yellow version", "Pokémon Yellow"}
+      {"heartgold", "Pokémon HeartGold"}, {"heart gold", "Pokémon HeartGold"},
+      {"soulsilver", "Pokémon SoulSilver"}, {"soul silver", "Pokémon SoulSilver"},
+      {"leafgreen", "Pokémon LeafGreen"}, {"leaf green", "Pokémon LeafGreen"},
+      {"firered", "Pokémon FireRed"}, {"fire red", "Pokémon FireRed"},
+      {"pokemon black 2", "Pokémon Black 2"}, {"black 2", "Pokémon Black 2"},
+      {"pokemon white 2", "Pokémon White 2"}, {"white 2", "Pokémon White 2"},
+      {"platinum", "Pokémon Platinum"}, {"pokemon diamond", "Pokémon Diamond"},
+      {"pokemon pearl", "Pokémon Pearl"}, {"pokemon black", "Pokémon Black"},
+      {"pokemon white", "Pokémon White"}, {"pokemon emerald", "Pokémon Emerald"},
+      {"pokemon sapphire", "Pokémon Sapphire"}, {"pokemon ruby", "Pokémon Ruby"},
+      {"pokemon x", "Pokémon X"}, {"pokemon y", "Pokémon Y"},
+      {"pokemon sun", "Pokémon Sun"}, {"pokemon moon", "Pokémon Moon"}
     };
-    for (String[] entry : known) if (p.contains(entry[0])) return entry[1];
-    String[][] tokenGames = {
-      {"emerald", "Pokémon Emerald"}, {"crystal", "Pokémon Crystal"},
-      {"sapphire", "Pokémon Sapphire"}, {"ruby", "Pokémon Ruby"},
-      {"gold", "Pokémon Gold"}, {"silver", "Pokémon Silver"},
-      {"yellow", "Pokémon Yellow"}, {"red", "Pokémon Red"}, {"blue", "Pokémon Blue"}
-    };
-    for (String[] entry : tokenGames) {
-      if (p.matches("(?s).*(?:^|[^a-z])" + entry[0] + "(?:$|[^a-z]).*")) return entry[1];
+    for (String[] entry : phrases) {
+      if (normalized.contains(entry[0])) return entry[1];
     }
-    return "Unidentified Pokémon save candidate";
+    return null;
   }
 
   private static String saveConfidence(String name, String path) {

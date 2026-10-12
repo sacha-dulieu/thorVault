@@ -1,4 +1,4 @@
-# ThorVault v0.12.22-alpha
+# ThorVault v0.12.23-alpha
 
 ## Offline-first Android transfer milestone
 
@@ -22,10 +22,10 @@ remain server-backed.
 - Choose which remembered folders to scan on each run.
 - Scan asynchronously with progress, cancellation, partial results, and a two-minute no-progress watchdog.
 - Keep partial or previous results when a location fails or a scan reaches a safety limit.
-- Identify likely save types and emulator/system/game hints from file names, paths, title IDs, and extensions.
+- List recognised Pokémon saves only; use the correct Nintendo 3DS title-ID families to name X, Y, Omega Ruby, Alpha Sapphire, Sun, Moon, Ultra Sun, and Ultra Moon. Other games and unidentified generic saves are hidden, including from previously cached scan results.
 - Fingerprint small save candidates with SHA-256 to flag exact duplicates; duplicates are reported only and never deleted automatically.
 - Cache discovery results across app restarts.
 - Before applying or restoring a device save, create a uniquely named backup and JSON manifest, verify the backup, then verify the write; attempt a verified rollback if a write fails.
-- Use L1/R1 to cycle app tabs. The D-pad moves focus between visible controls and box slots; use the controller confirm button to activate the focused item.
+- Controller navigation: L1/R1 cycles app tabs; D-pad prefers nearby Pokémon box slots when moving around the grid and can move to surrounding controls at the grid edges; A/centre activates the focused control; B/Escape dismisses an open dialog.
 
 Scan detection is heuristic and does not guarantee every emulator save will be found. Android may deny access to protected directories; add any accessible save directories separately.

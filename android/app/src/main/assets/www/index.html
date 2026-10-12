@@ -177,7 +177,9 @@
     .scan-activity progress{display:block;width:100%;height:8px;margin:.25rem 0;accent-color:var(--accent)}
     #androidScanProgressMeta{margin:0;font-weight:400;font-size:.78rem}
     .android-duplicate-warning{margin:.35rem 0 0;padding:.4rem .5rem;border-left:3px solid #ffe274;color:#ffeaa1;background:#ffe2740a;font-size:.78rem;line-height:1.35}
-    body.thorvault-native :is(button,a[href],input,select,textarea,[tabindex]):focus{outline:3px solid var(--mint)!important;outline-offset:3px!important;box-shadow:0 0 0 4px #48dfb12b!important}
+    body.thorvault-native :is(button,a[href],input,select,textarea,[tabindex]):focus{outline:4px solid var(--mint)!important;outline-offset:4px!important;box-shadow:0 0 0 6px #48dfb14a!important;position:relative;z-index:2}
+    body.thorvault-native .box-slot:focus{transform:scale(1.025);border-color:var(--mint)!important}
+    body.thorvault-native .android-game-card:focus-within{border-color:var(--mint);box-shadow:0 0 0 2px #48dfb14a}
     body.thorvault-native nav .tab:focus{position:relative;z-index:101;box-shadow:inset 0 0 0 2px var(--mint)!important}
     .archive-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.65rem;align-items:center;padding:.7rem;border:1px solid var(--line);border-radius:13px;background:#111a30}
     .archive-actions{display:flex;gap:.35rem;flex-wrap:wrap}
@@ -450,8 +452,8 @@
 </head>
 <body>
 <header>
-  <div><p class="eyebrow">LOCAL-FIRST POKÉMON BANK · v0.12.22-alpha</p><h1>ThorVault</h1></div>
-  <div class="status"><span id="androidBuildBadge" class="pill android-build-badge hidden">Android 0.12.22</span><span id="versionCompatibility" class="pill version-pill muted-pill">App 0.12.22 · Server ?</span><span id="network" class="pill">Checking</span><span id="syncState" class="pill muted-pill">Local only</span></div>
+  <div><p class="eyebrow">LOCAL-FIRST POKÉMON BANK · v0.12.23-alpha</p><h1>ThorVault</h1></div>
+  <div class="status"><span id="androidBuildBadge" class="pill android-build-badge hidden">Android 0.12.23</span><span id="versionCompatibility" class="pill version-pill muted-pill">App 0.12.23 · Server ?</span><span id="network" class="pill">Checking</span><span id="syncState" class="pill muted-pill">Local only</span></div>
 </header>
 
 <nav>
@@ -692,7 +694,7 @@
           <div>
             <p class="eyebrow">ANDROID / AYN THOR</p>
             <h2>My Pokémon games</h2>
-            <p class="meta">Grant the emulator root once. ThorVault remembers it, scans for save candidates, and lets you open the active save directly.</p>
+            <p class="meta">Choose the ROMs folder or emulator save folder once. ThorVault remembers it and lists recognised Pokémon saves only; unrelated games are filtered out.</p>
           </div>
           <button id="androidScanGames">Scan selected folders</button>
         </div>
@@ -727,7 +729,8 @@
             <p><strong>1. Add folders.</strong> Android does not let ThorVault search the entire device. Add each accessible ROM, emulator, or save folder that may contain battery saves.</p>
             <p><strong>2. Select locations to scan.</strong> Folder choices and scan checkboxes are remembered. Scan only selected locations or deselect large folders temporarily.</p>
             <p><strong>3. Watch progress.</strong> ThorVault reports entries checked and candidates found as it runs. You can cancel, and partial results are retained when you cancel or hit a safety limit.</p>
-            <p><strong>4. Review candidates.</strong> ThorVault uses filename, path, system and emulator patterns, plus exact SHA-256 fingerprints to flag likely saves and duplicate contents. Detection is a hint; review each result before opening it.</p>
+            <p><strong>4. Pokémon saves only.</strong> ThorVault matches known Pokémon game names and Nintendo 3DS title IDs. Unidentified files and other games are hidden instead of appearing as save candidates.</p>
+            <p><strong>Controller.</strong> D-pad moves the highlight; A or the centre button activates it; B or Escape closes the current dialog; L1/R1 changes tabs. The highlight shows which control will activate.</p>
           </div>
         </details>
 
@@ -1030,7 +1033,7 @@
 
   var STATE_KEY = "thorvault-state-v011";
   var SETTINGS_KEY = "thorvault-settings-v011";
-  var CLIENT_VERSION = "0.12.22";
+  var CLIENT_VERSION = "0.12.23";
   var CLIENT_API_VERSION = 1;
   var BROWSER_FETCH = window.fetch.bind(window);
   var SYNC_META_KEY = "thorvault-sync-meta-v1";
@@ -1364,7 +1367,7 @@
       var earlyAndroidBadge = document.getElementById("androidBuildBadge");
       if (earlyAndroidBadge) {
         earlyAndroidBadge.classList.remove("hidden");
-        earlyAndroidBadge.textContent = "Android 0.12.22";
+        earlyAndroidBadge.textContent = "Android 0.12.23";
       }
       try {
         var nativeConfig = JSON.parse(window.ThorVaultNative.getServerConfig() || "{}");
@@ -5635,7 +5638,7 @@ function showSyncConflict(latest){pendingSyncConflict=latest;var x=summarizeVaul
       scheduleServerReconnect(SERVER_RETRY_OFFLINE_MS);
     });
     if (!isAndroidShell && "serviceWorker" in navigator)
-      navigator.serviceWorker.register("service-worker.js?v=01222").catch(function (error) { console.error(error); });
+      navigator.serviceWorker.register("service-worker.js?v=01223").catch(function (error) { console.error(error); });
 
     render();
     normalizeVaultSlots();

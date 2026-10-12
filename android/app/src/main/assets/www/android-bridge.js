@@ -143,7 +143,7 @@
     var badge = document.querySelector("#androidBuildBadge");
     if (badge) {
       badge.classList.remove("hidden");
-      badge.textContent = "Android 0.12.22";
+      badge.textContent = "Android 0.12.23";
     }
 
   var tabDesign = {
@@ -263,6 +263,42 @@
       if (typeof first.scrollIntoView === "function") first.scrollIntoView({block:"nearest", inline:"nearest"});
       return;
     }
+    // Inside a Pokémon box, prefer another slot in the same grid before
+    // considering nearby toolbar controls. This makes D-pad navigation across
+    // the six-column box much more predictable on a handheld controller.
+    if (current.classList && current.classList.contains("box-slot")) {
+      var currentGrid = current.closest(".pokemon-box");
+      if (currentGrid) {
+        var currentSlotRect = current.getBoundingClientRect();
+        var slotCx = currentSlotRect.left + currentSlotRect.width / 2;
+        var slotCy = currentSlotRect.top + currentSlotRect.height / 2;
+        var slotBest = null;
+        var slotBestScore = Infinity;
+        Array.prototype.slice.call(currentGrid.querySelectorAll(".box-slot:not(.filtered-out)" )).forEach(function (slot) {
+          if (slot === current || slot.disabled) return;
+          var slotRect = slot.getBoundingClientRect();
+          if (!slotRect.width || !slotRect.height) return;
+          var sx = slotRect.left + slotRect.width / 2;
+          var sy = slotRect.top + slotRect.height / 2;
+          var primary, secondary;
+          if (direction === "left") { if (sx >= slotCx - 1) return; primary = slotCx - sx; secondary = Math.abs(slotCy - sy); }
+          else if (direction === "right") { if (sx <= slotCx + 1) return; primary = sx - slotCx; secondary = Math.abs(slotCy - sy); }
+          else if (direction === "up") { if (sy >= slotCy - 1) return; primary = slotCy - sy; secondary = Math.abs(slotCx - sx); }
+          else { if (sy <= slotCy + 1) return; primary = sy - slotCy; secondary = Math.abs(slotCx - sx); }
+          var score = primary + secondary * 2.25;
+          if (score < slotBestScore) { slotBestScore = score; slotBest = slot; }
+        });
+        if (slotBest) {
+          try { slotBest.focus({preventScroll:true}); } catch (_error) { slotBest.focus(); }
+          if (typeof slotBest.scrollIntoView === "function") slotBest.scrollIntoView({block:"nearest", inline:"nearest"});
+          return;
+        }
+        // Avoid jumping sideways from the edge of the box to an unrelated
+        // control. Vertical movement can still leave the grid for its toolbar.
+        if (direction === "left" || direction === "right") return;
+      }
+    }
+
     var rect = current.getBoundingClientRect();
     var cx = rect.left + rect.width / 2;
     var cy = rect.top + rect.height / 2;
@@ -488,7 +524,8 @@
     (incoming.games || []).forEach(function (game, index) {
       map.set(String(game.uri || game.displayPath || ("new-" + index)), game);
     });
-    var merged = Object.assign({}, lastScanResult || {}, incoming, {games:Array.from(map.values())});
+    var retainedGames = Array.from(map.values()).filter(isPokemonSaveCandidate);
+    var merged = Object.assign({}, lastScanResult || {}, incoming, {games:retainedGames});
     var hashes = Object.create(null);
     merged.games.forEach(function (game) { if (game.sha256) hashes[game.sha256] = (hashes[game.sha256] || 0) + 1; });
     merged.duplicateGroups = Object.keys(hashes).filter(function (hash) { return hashes[hash] > 1; }).length;
@@ -523,44 +560,75 @@
   }
 
   function detectedGameLabel(game) {
-    var text = String(
-      (game && (game.relativePath || game.uri || game.name)) || ""
-    ).toLowerCase();
+    var text = [
+      game && game.displayPath, game && game.relativePath, game && game.uri,
+      game && game.name, game && game.label, game && game.detectedGame
+    ].filter(Boolean).join(" ").toLowerCase();
 
     var ids = [
-      ["0011c400","Pokémon Omega Ruby"],
-      ["0011c500","Pokémon Alpha Sapphire"],
-      ["000400000011c400","Pokémon Omega Ruby"],
-      ["000400000011c500","Pokémon Alpha Sapphire"],
-      ["0004000000055e00","Pokémon X"],
-      ["0004000000055f00","Pokémon Y"],
-      ["00040000001b5100","Pokémon Sun"],
-      ["00040000001b5000","Pokémon Moon"],
-      ["00040000001b5200","Pokémon Ultra Sun"],
-      ["00040000001b5300","Pokémon Ultra Moon"]
+      ["00055d", "Pokémon X"], ["00055e", "Pokémon Y"],
+      ["0011c4", "Pokémon Omega Ruby"], ["0011c5", "Pokémon Alpha Sapphire"],
+      ["001648", "Pokémon Sun"], ["00175e", "Pokémon Moon"],
+      ["001b50", "Pokémon Ultra Sun"], ["001b51", "Pokémon Ultra Moon"]
     ];
-
-    for (var i=0;i<ids.length;i++) {
+    for (var i = 0; i < ids.length; i++) {
       if (text.indexOf(ids[i][0]) >= 0) return ids[i][1];
     }
 
-    var lowerName = String((game && (game.name || game.label)) || "").toLowerCase();
+    var normalized = text.replace(/pok[eé]mon/g, "pokemon").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
     var names = [
-      ["omega ruby","Pokémon Omega Ruby"],
-      ["alpha sapphire","Pokémon Alpha Sapphire"],
-      ["ultra sun","Pokémon Ultra Sun"],
-      ["ultra moon","Pokémon Ultra Moon"],
-      ["white 2","Pokémon White 2"],
-      ["black 2","Pokémon Black 2"],
-      ["platinum","Pokémon Platinum"],
-      ["heartgold","Pokémon HeartGold"],
-      ["soulsilver","Pokémon SoulSilver"]
+      ["omega ruby", "Pokémon Omega Ruby"], ["alpha sapphire", "Pokémon Alpha Sapphire"],
+      ["ultra sun", "Pokémon Ultra Sun"], ["ultra moon", "Pokémon Ultra Moon"],
+      ["heartgold", "Pokémon HeartGold"], ["heart gold", "Pokémon HeartGold"],
+      ["soulsilver", "Pokémon SoulSilver"], ["soul silver", "Pokémon SoulSilver"],
+      ["leafgreen", "Pokémon LeafGreen"], ["leaf green", "Pokémon LeafGreen"],
+      ["firered", "Pokémon FireRed"], ["fire red", "Pokémon FireRed"],
+      ["pokemon black 2", "Pokémon Black 2"], ["black 2", "Pokémon Black 2"],
+      ["pokemon white 2", "Pokémon White 2"], ["white 2", "Pokémon White 2"],
+      ["platinum", "Pokémon Platinum"], ["pokemon diamond", "Pokémon Diamond"],
+      ["pokemon pearl", "Pokémon Pearl"], ["pokemon black", "Pokémon Black"],
+      ["pokemon white", "Pokémon White"], ["pokemon emerald", "Pokémon Emerald"],
+      ["pokemon sapphire", "Pokémon Sapphire"], ["pokemon ruby", "Pokémon Ruby"],
+      ["pokemon x", "Pokémon X"], ["pokemon y", "Pokémon Y"],
+      ["pokemon sun", "Pokémon Sun"], ["pokemon moon", "Pokémon Moon"]
     ];
-    for (var j=0;j<names.length;j++) {
-      if (lowerName.indexOf(names[j][0]) >= 0) return names[j][1];
+    for (var j = 0; j < names.length; j++) {
+      if (normalized.indexOf(names[j][0]) >= 0) return names[j][1];
     }
+    var declared = String((game && game.detectedGame) || "");
+    if (/^Pok[eé]mon\s+/i.test(declared) && !/unidentified/i.test(declared)) return declared;
     return null;
   }
+
+  function isPokemonSaveCandidate(game) {
+    return Boolean(detectedGameLabel(game));
+  }
+
+  window.thorVaultControllerActivate = function () {
+    var active = document.activeElement;
+    if (!active || active === document.body || active.disabled) {
+      var view = document.querySelector(".view.active-view");
+      active = view && view.querySelector("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex='0']");
+      if (!active) active = document.querySelector("nav .tab.active-tab");
+      if (!active) return;
+      try { active.focus({preventScroll:true}); } catch (_error) { active.focus(); }
+    }
+    if (typeof active.click === "function") active.click();
+  };
+
+  window.thorVaultControllerBack = function () {
+    var modal = document.querySelector("dialog[open]");
+    if (!modal) return false;
+    var closeCandidates = Array.prototype.slice.call(modal.querySelectorAll("button:not(:disabled)"));
+    var closeButton = closeCandidates.find(function (button) {
+      var text = [button.textContent, button.id, button.getAttribute("aria-label"), button.title].join(" ").toLowerCase();
+      var id = String(button.id || "").toLowerCase();
+      return /\b(close|cancel|dismiss|back|done)\b|[×✕]/.test(text) || /^(close|cancel|dismiss|back|done)/.test(id);
+    });
+    if (closeButton) closeButton.click();
+    else if (typeof modal.close === "function") modal.close();
+    return true;
+  };
 
 function showGames(result) {
     lastScanResult = result || lastScanResult;
@@ -571,11 +639,17 @@ function showGames(result) {
     var folderStatus = result.folderStatus || result;
     renderFolderDiagnostics(folderStatus);
     var locations = folderStatus.locations || result.locations || [];
-    var games = (result.games || []).slice().sort(function (a, b) {
+    var allGames = result.games || [];
+    var games = allGames.filter(isPokemonSaveCandidate).sort(function (a, b) {
       if (a.uri === selectedUri) return -1;
       if (b.uri === selectedUri) return 1;
       return String(a.displayPath || a.relativePath || a.name).localeCompare(String(b.displayPath || b.relativePath || b.name));
     });
+    if (games.length !== allGames.length) {
+      result.games = games;
+      lastScanResult = result;
+      cacheScanSnapshot(result, true);
+    }
     var duplicateCounts = getDuplicateCounts(games);
     var duplicateGroups = Object.keys(duplicateCounts).filter(function (hash) { return duplicateCounts[hash] > 1; }).length;
     count.textContent = games.length + " found" + (duplicateGroups ? " · " + duplicateGroups + " duplicate group(s)" : "");
@@ -597,7 +671,7 @@ function showGames(result) {
       }
     }
     if (!games.length) {
-      list.innerHTML = "<p class='empty'>No save candidates found in the completed scan yet. Check other emulator save directories or Android folder permissions.</p>";
+      list.innerHTML = "<p class='empty'>No recognised Pokémon saves found yet. Check that the selected folder contains Pokémon save files, or add the emulator's separate save folder. Other games are intentionally hidden.</p>";
       renderActiveGame();
       return;
     }
