@@ -177,7 +177,10 @@
     .scan-activity progress{display:block;width:100%;height:8px;margin:.25rem 0;accent-color:var(--accent)}
     #androidScanProgressMeta{margin:0;font-weight:400;font-size:.78rem}
     .android-duplicate-warning{margin:.35rem 0 0;padding:.4rem .5rem;border-left:3px solid #ffe274;color:#ffeaa1;background:#ffe2740a;font-size:.78rem;line-height:1.35}
-    body.thorvault-native :is(button,a[href],input,select,textarea,[tabindex]):focus{outline:4px solid var(--mint)!important;outline-offset:4px!important;box-shadow:0 0 0 6px #48dfb14a!important;position:relative;z-index:2}
+    body.thorvault-native, body.thorvault-native *{-webkit-tap-highlight-color:transparent!important;}
+    body.thorvault-native button,body.thorvault-native a,body.thorvault-native input,body.thorvault-native select,body.thorvault-native textarea{ -webkit-appearance:none; }
+    body.thorvault-native button:active,body.thorvault-native a:active,body.thorvault-native .box-slot:active{filter:none!important;opacity:1!important;background-image:none!important;}
+    body.thorvault-native :is(button,a[href],input,select,textarea,[tabindex]):focus{outline:3px solid var(--mint)!important;outline-offset:2px!important;box-shadow:0 0 0 3px #48dfb126!important;position:relative;z-index:2;background-color:inherit;}
     body.thorvault-native .box-slot:focus{transform:scale(1.025);border-color:var(--mint)!important}
     body.thorvault-native .android-game-card:focus-within{border-color:var(--mint);box-shadow:0 0 0 2px #48dfb14a}
     body.thorvault-native nav .tab:focus{position:relative;z-index:101;box-shadow:inset 0 0 0 2px var(--mint)!important}
@@ -1662,6 +1665,34 @@ function androidVaultSelectedEntry() {
   }) || null;
 }
 
+function publishAndroidBottomScreenPokemon(entry) {
+  if (!window.ThorVaultNative || typeof window.ThorVaultNative.showPokemonOnBottomScreen !== "function") return false;
+  if (!entry) {
+    try { window.ThorVaultNative.clearPokemonOnBottomScreen(); } catch (_error) {}
+    return false;
+  }
+  var payload = {
+    nickname: entry.nickname || "",
+    species: entry.species || "Pokémon",
+    level: entry.level == null ? "?" : String(entry.level),
+    gender: entry.gender || "Unknown",
+    shiny: !!entry.shiny,
+    nature: entry.nature || "Unknown",
+    abilityId: entry.abilityId == null ? "Unknown" : String(entry.abilityId),
+    abilityName: entry.abilityName || "",
+    heldItemId: entry.heldItemId == null ? "None" : String(entry.heldItemId),
+    heldItemName: entry.heldItemName || "",
+    originGame: entry.originGame || "Unknown",
+    originalTrainer: entry.originalTrainer || "Unknown",
+    box: Number(entry.box || 1),
+    slot: Number(entry.slot || 0),
+    moves: Array.isArray(entry.moves) ? entry.moves : [],
+    moveNames: Array.isArray(entry.moveNames) ? entry.moveNames : []
+  };
+  try { return !!window.ThorVaultNative.showPokemonOnBottomScreen(JSON.stringify(payload)); }
+  catch (_error) { return false; }
+}
+
 function renderAndroidVaultSelection() {
   var panel = $("#androidVaultSelection");
   if (!panel) return;
@@ -1678,8 +1709,10 @@ function renderAndroidVaultSelection() {
   if (!entry) {
     panel.querySelector("div").innerHTML =
       '<strong>Tap a Pokémon</strong><p class="meta">Select a sprite to see actions.</p>';
+    publishAndroidBottomScreenPokemon(null);
     return;
   }
+  publishAndroidBottomScreenPokemon(entry);
 
   panel.querySelector("div").innerHTML =
     '<strong>' + escapeHtml(entry.nickname || entry.species) + '</strong>' +
@@ -1858,6 +1891,18 @@ function pokemonDetailsMarkup(record) {
 async function showAndroidVaultPokemonDetails() {
   var entry = androidVaultSelectedEntry();
   if (!entry) return;
+
+  // On dual-screen Android handhelds, keep the box/grid on the top screen and
+  // show the selected Pokémon's details on the lower screen instead of covering
+  // the main UI with a modal. Fall back to the existing dialog on single-screen devices.
+  if (publishAndroidBottomScreenPokemon(entry)) {
+    if (!hasCompletePokemonMetadata(entry) && entry.payloadBase64) {
+      try { await hydrateVaultEntry(entry); } catch (_error) {}
+      publishAndroidBottomScreenPokemon(entry);
+    }
+    toast("Pokémon details shown on the lower screen");
+    return;
+  }
 
   var dialog = $("#androidPokemonDetailsDialog");
   var body = $("#androidPokemonDetailsBody");

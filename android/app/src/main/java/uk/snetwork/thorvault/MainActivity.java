@@ -1,6 +1,15 @@
 package uk.snetwork.thorvault;
 
 import android.content.Context;
+import android.app.Presentation;
+import android.hardware.display.DisplayManager;
+import android.view.Display;
+import android.view.View;
+import android.view.Gravity;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.content.Intent;
 import android.content.UriPermission;
 import android.content.SharedPreferences;
@@ -100,6 +109,7 @@ public final class MainActivity extends ComponentActivity {
   }
 
   private WebView webView;
+  private PokemonDetailsPresentation pokemonDetailsPresentation;
   private SharedPreferences prefs;
   private ActivityResultLauncher<Uri> folderPicker;
   private final Map<String, AtomicBoolean> activeScans = new ConcurrentHashMap<>();
@@ -127,6 +137,7 @@ public final class MainActivity extends ComponentActivity {
 
     webView = new WebView(this);
     webView.setBackgroundColor(Color.rgb(7, 17, 31));
+    webView.setDefaultFocusHighlightEnabled(false);
     setContentView(webView);
 
     WebSettings settings = webView.getSettings();
@@ -138,13 +149,13 @@ public final class MainActivity extends ComponentActivity {
     settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
     settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
     settings.setUserAgentString(
-        settings.getUserAgentString() + " ThorVaultAndroid/0.12.23"
+        settings.getUserAgentString() + " ThorVaultAndroid/0.12.24"
     );
     String bundledVersion = prefs.getString("web_asset_version", "");
-    if (!"0.12.23".equals(bundledVersion)) {
+    if (!"0.12.24".equals(bundledVersion)) {
       webView.clearCache(true);
       webView.clearHistory();
-      prefs.edit().putString("web_asset_version", "0.12.23").apply();
+      prefs.edit().putString("web_asset_version", "0.12.24").apply();
     }
 
     WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
@@ -169,7 +180,180 @@ public final class MainActivity extends ComponentActivity {
       }
     });
     webView.addJavascriptInterface(new Bridge(), "ThorVaultNative");
-    webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=1223");
+    webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=1224");
+  }
+
+  @Override protected void onDestroy() {
+    if (pokemonDetailsPresentation != null) {
+      try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
+      pokemonDetailsPresentation = null;
+    }
+    if (webView != null) {
+      webView.removeJavascriptInterface("ThorVaultNative");
+      webView.destroy();
+      webView = null;
+    }
+    super.onDestroy();
+  }
+
+  private Display findSecondaryPresentationDisplay() {
+    DisplayManager manager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+    if (manager == null) return null;
+    Display[] suitable = manager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
+    for (Display display : suitable) {
+      if (display != null && display.getDisplayId() != Display.DEFAULT_DISPLAY) return display;
+    }
+    // Some handheld firmware exposes its built-in lower panel as a secondary display
+    // without adding it to DISPLAY_CATEGORY_PRESENTATION. Try it as a best-effort fallback.
+    for (Display display : manager.getDisplays()) {
+      if (display != null && display.getDisplayId() != Display.DEFAULT_DISPLAY) return display;
+    }
+    return null;
+  }
+
+  private boolean updateBottomScreenPokemon(String json) {
+    final JSONObject data;
+    final Display display = findSecondaryPresentationDisplay();
+    if (display == null) return false;
+    try {
+      data = new JSONObject(json == null ? "{}" : json);
+    } catch (Exception error) {
+      return false;
+    }
+    runOnUiThread(() -> {
+      try {
+        if (pokemonDetailsPresentation == null ||
+            pokemonDetailsPresentation.getDisplay().getDisplayId() != display.getDisplayId()) {
+          if (pokemonDetailsPresentation != null) {
+            try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
+          }
+          pokemonDetailsPresentation = new PokemonDetailsPresentation(MainActivity.this, display);
+          pokemonDetailsPresentation.show();
+        }
+        pokemonDetailsPresentation.updatePokemon(data);
+      } catch (Exception error) {
+        android.util.Log.w("ThorVault", "Could not show Pokémon details on the secondary display", error);
+        if (pokemonDetailsPresentation != null) {
+          try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
+          pokemonDetailsPresentation = null;
+        }
+      }
+    });
+    return true;
+  }
+
+  private final class PokemonDetailsPresentation extends Presentation {
+    private final TextView title;
+    private final TextView subtitle;
+    private final TextView facts;
+    private final TextView moves;
+
+    PokemonDetailsPresentation(Context context, Display display) {
+      super(context, display);
+      LinearLayout root = new LinearLayout(getContext());
+      root.setOrientation(LinearLayout.VERTICAL);
+      root.setGravity(Gravity.CENTER_VERTICAL);
+      root.setPadding(28, 24, 28, 24);
+      root.setBackgroundColor(Color.rgb(8, 12, 24));
+
+      TextView brand = new TextView(getContext());
+      brand.setText("THORVAULT  ·  POKÉMON DETAILS");
+      brand.setTextColor(Color.rgb(72, 223, 177));
+      brand.setTextSize(12);
+      brand.setLetterSpacing(0.08f);
+      brand.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+      root.addView(brand, new LinearLayout.LayoutParams(-1, -2));
+
+      LinearLayout card = new LinearLayout(getContext());
+      card.setOrientation(LinearLayout.VERTICAL);
+      card.setPadding(22, 20, 22, 20);
+      GradientDrawable shape = new GradientDrawable();
+      shape.setColor(Color.rgb(17, 24, 44));
+      shape.setCornerRadius(24f);
+      shape.setStroke(1, Color.rgb(43, 54, 85));
+      card.setBackground(shape);
+      LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(-1, -2);
+      cardParams.topMargin = 14;
+      root.addView(card, cardParams);
+
+      title = new TextView(getContext());
+      title.setTextColor(Color.WHITE);
+      title.setTextSize(28);
+      title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+      card.addView(title, new LinearLayout.LayoutParams(-1, -2));
+
+      subtitle = new TextView(getContext());
+      subtitle.setTextColor(Color.rgb(72, 223, 177));
+      subtitle.setTextSize(17);
+      LinearLayout.LayoutParams subParams = new LinearLayout.LayoutParams(-1, -2);
+      subParams.topMargin = 4;
+      card.addView(subtitle, subParams);
+
+      facts = new TextView(getContext());
+      facts.setTextColor(Color.rgb(218, 225, 245));
+      facts.setTextSize(16);
+      facts.setLineSpacing(5f, 1f);
+      LinearLayout.LayoutParams factsParams = new LinearLayout.LayoutParams(-1, -2);
+      factsParams.topMargin = 18;
+      card.addView(facts, factsParams);
+
+      moves = new TextView(getContext());
+      moves.setTextColor(Color.rgb(158, 169, 198));
+      moves.setTextSize(14);
+      moves.setLineSpacing(4f, 1f);
+      LinearLayout.LayoutParams movesParams = new LinearLayout.LayoutParams(-1, -2);
+      movesParams.topMargin = 14;
+      card.addView(moves, movesParams);
+
+      TextView hint = new TextView(getContext());
+      hint.setText("Select another Pokémon on the top screen to update this panel.");
+      hint.setTextColor(Color.rgb(120, 133, 163));
+      hint.setTextSize(12);
+      LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(-1, -2);
+      hintParams.topMargin = 18;
+      root.addView(hint, hintParams);
+      setContentView(root);
+    }
+
+    void updatePokemon(JSONObject data) {
+      String name = data.optString("nickname", "");
+      if (name.isEmpty() || "null".equals(name)) name = data.optString("species", "Pokémon");
+      title.setText(name);
+      String species = data.optString("species", "Pokémon");
+      String level = data.optString("level", "?");
+      String gender = data.optString("gender", "Unknown");
+      String shiny = data.optBoolean("shiny", false) ? "Shiny" : "Normal";
+      subtitle.setText(species + "   ·   Lv. " + level + "   ·   " + shiny);
+      StringBuilder lines = new StringBuilder();
+      addFact(lines, "Nature", data.optString("nature", "Unknown"));
+      addFact(lines, "Ability", data.optString("abilityName", data.optString("abilityId", "Unknown")));
+      addFact(lines, "Held item", data.optString("heldItemName", data.optString("heldItemId", "None")));
+      addFact(lines, "Gender", gender);
+      addFact(lines, "Origin", data.optString("originGame", "Unknown"));
+      addFact(lines, "Trainer", data.optString("originalTrainer", "Unknown"));
+      addFact(lines, "Location", "Box " + data.optInt("box", 1) + " · Slot " + (data.optInt("slot", 0) + 1));
+      facts.setText(lines.toString());
+      JSONArray moveArray = data.optJSONArray("moveNames");
+      if (moveArray == null) moveArray = data.optJSONArray("moves");
+      StringBuilder moveText = new StringBuilder("MOVES\n");
+      if (moveArray != null) {
+        for (int i = 0; i < moveArray.length(); i++) {
+          String move = moveArray.optString(i, "");
+          if (!move.isEmpty() && !"0".equals(move) && !"null".equals(move)) {
+            if (moveText.length() > 6) moveText.append("  ·  ");
+            moveText.append(move);
+          }
+        }
+      }
+      if (moveText.length() <= 6) moveText.append("No move data available");
+      moves.setText(moveText.toString());
+    }
+
+    private void addFact(StringBuilder target, String label, String value) {
+      if (value == null || value.isEmpty() || "null".equals(value)) value = "Unknown";
+      if (target.length() > 0) target.append("\n");
+      target.append(label).append("   ").append(value);
+    }
   }
 
   @Override public boolean dispatchKeyEvent(KeyEvent event) {
@@ -384,6 +568,19 @@ public final class MainActivity extends ComponentActivity {
   }
 
   private final class Bridge {
+    @JavascriptInterface public boolean showPokemonOnBottomScreen(String json) {
+      return updateBottomScreenPokemon(json);
+    }
+
+    @JavascriptInterface public void clearPokemonOnBottomScreen() {
+      runOnUiThread(() -> {
+        if (pokemonDetailsPresentation != null) {
+          try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
+          pokemonDetailsPresentation = null;
+        }
+      });
+    }
+
     @JavascriptInterface public boolean isAndroidApp() { return true; }
 
     @JavascriptInterface public void chooseGameFolder() {

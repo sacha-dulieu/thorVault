@@ -1,4 +1,4 @@
-# ThorVault v0.12.23-alpha
+# ThorVault v0.12.24-alpha
 
 ## Offline-first Android transfer milestone
 
@@ -29,3 +29,11 @@ remain server-backed.
 - Controller navigation: L1/R1 cycles app tabs; D-pad prefers nearby Pokémon box slots when moving around the grid and can move to surrounding controls at the grid edges; A/centre activates the focused control; B/Escape dismisses an open dialog.
 
 Scan detection is heuristic and does not guarantee every emulator save will be found. Android may deny access to protected directories; add any accessible save directories separately.
+
+
+## v0.12.24-alpha
+
+- Experimental AYN Thor secondary-screen Pokémon details panel using Android presentation displays.
+- Selecting a Pokémon updates the lower-screen details panel when the device exposes a usable secondary display; single-screen devices retain the existing details dialog.
+- Reduced Android/WebView gray tap/focus highlighting while retaining a visible mint controller-focus outline.
+- Requires testing on the physical AYN Thor; firmware may restrict secondary-display presentations.
