@@ -143,7 +143,7 @@
     var badge = document.querySelector("#androidBuildBadge");
     if (badge) {
       badge.classList.remove("hidden");
-      badge.textContent = "Android 0.12.23";
+      badge.textContent = "Android 0.12.25";
     }
 
   var tabDesign = {
@@ -237,7 +237,13 @@
     var delta = direction === "previous" ? -1 : 1;
     var next = (current + delta + tabs.length) % tabs.length;
     tabs[next].click();
-    try { tabs[next].focus({preventScroll:true}); } catch (_error) { tabs[next].focus(); }
+    // The tabs are intentionally not part of D-pad navigation. After L1/R1
+    // changes the view, put controller focus in that view instead of on a tab.
+    var view = document.querySelector(".view.active-view");
+    var first = view && view.querySelector("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex='0']");
+    if (first) {
+      try { first.focus({preventScroll:true}); } catch (_error) { first.focus(); }
+    }
   };
 
   window.thorVaultMoveControllerFocus = function (direction) {
@@ -245,7 +251,6 @@
     var view = document.querySelector(".view.active-view");
     var selectors = "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex='0']";
     var candidates = [];
-    if (!modal) candidates = candidates.concat(Array.prototype.slice.call(document.querySelectorAll("nav .tab")));
     if (modal) candidates = candidates.concat(Array.prototype.slice.call(modal.querySelectorAll(selectors)));
     else if (view) candidates = candidates.concat(Array.prototype.slice.call(view.querySelectorAll(selectors)));
     candidates = candidates.filter(function (element, index, all) {
@@ -263,9 +268,9 @@
       if (typeof first.scrollIntoView === "function") first.scrollIntoView({block:"nearest", inline:"nearest"});
       return;
     }
-    // Inside a Pokémon box, prefer another slot in the same grid before
-    // considering nearby toolbar controls. This makes D-pad navigation across
-    // the six-column box much more predictable on a handheld controller.
+    // Within a Pokémon box, move only to the adjacent slot in the same row or
+    // column. Geometry scoring can otherwise mistake a button above-right for
+    // the intended slot when a controller sends Right.
     if (current.classList && current.classList.contains("box-slot")) {
       var currentGrid = current.closest(".pokemon-box");
       if (currentGrid) {
@@ -280,12 +285,26 @@
           if (!slotRect.width || !slotRect.height) return;
           var sx = slotRect.left + slotRect.width / 2;
           var sy = slotRect.top + slotRect.height / 2;
-          var primary, secondary;
-          if (direction === "left") { if (sx >= slotCx - 1) return; primary = slotCx - sx; secondary = Math.abs(slotCy - sy); }
-          else if (direction === "right") { if (sx <= slotCx + 1) return; primary = sx - slotCx; secondary = Math.abs(slotCy - sy); }
-          else if (direction === "up") { if (sy >= slotCy - 1) return; primary = slotCy - sy; secondary = Math.abs(slotCx - sx); }
-          else { if (sy <= slotCy + 1) return; primary = sy - slotCy; secondary = Math.abs(slotCx - sx); }
-          var score = primary + secondary * 2.25;
+          var primary, secondary, sameLane;
+          if (direction === "left") {
+            if (sx >= slotCx - 1) return;
+            primary = slotCx - sx; secondary = Math.abs(slotCy - sy);
+            sameLane = secondary <= Math.max(currentSlotRect.height, slotRect.height) * 0.55;
+          } else if (direction === "right") {
+            if (sx <= slotCx + 1) return;
+            primary = sx - slotCx; secondary = Math.abs(slotCy - sy);
+            sameLane = secondary <= Math.max(currentSlotRect.height, slotRect.height) * 0.55;
+          } else if (direction === "up") {
+            if (sy >= slotCy - 1) return;
+            primary = slotCy - sy; secondary = Math.abs(slotCx - sx);
+            sameLane = secondary <= Math.max(currentSlotRect.width, slotRect.width) * 0.55;
+          } else {
+            if (sy <= slotCy + 1) return;
+            primary = sy - slotCy; secondary = Math.abs(slotCx - sx);
+            sameLane = secondary <= Math.max(currentSlotRect.width, slotRect.width) * 0.55;
+          }
+          if (!sameLane) return;
+          var score = primary + secondary * 0.1;
           if (score < slotBestScore) { slotBestScore = score; slotBest = slot; }
         });
         if (slotBest) {
@@ -314,7 +333,10 @@
       else if (direction === "right") { if (x <= cx + 1) return; primary = x - cx; secondary = Math.abs(cy - y); }
       else if (direction === "up") { if (y >= cy - 1) return; primary = cy - y; secondary = Math.abs(cx - x); }
       else { if (y <= cy + 1) return; primary = y - cy; secondary = Math.abs(cx - x); }
-      var score = primary + secondary * 2.25;
+      // Reject steep diagonals before ranking. This preserves expected left /
+      // right movement even when controls have uneven heights.
+      if (secondary > primary * 0.75) return;
+      var score = primary + secondary * 0.25;
       if (score < bestScore) { bestScore = score; best = candidate; }
     });
     if (!best) {
@@ -609,7 +631,6 @@
     if (!active || active === document.body || active.disabled) {
       var view = document.querySelector(".view.active-view");
       active = view && view.querySelector("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex='0']");
-      if (!active) active = document.querySelector("nav .tab.active-tab");
       if (!active) return;
       try { active.focus({preventScroll:true}); } catch (_error) { active.focus(); }
     }

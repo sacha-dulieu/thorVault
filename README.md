@@ -1,4 +1,4 @@
-# ThorVault v0.12.24-alpha
+# ThorVault v0.12.25-alpha
 
 ## Offline-first Android transfer milestone
 
@@ -26,14 +26,14 @@ remain server-backed.
 - Fingerprint small save candidates with SHA-256 to flag exact duplicates; duplicates are reported only and never deleted automatically.
 - Cache discovery results across app restarts.
 - Before applying or restoring a device save, create a uniquely named backup and JSON manifest, verify the backup, then verify the write; attempt a verified rollback if a write fails.
-- Controller navigation: L1/R1 cycles app tabs; D-pad prefers nearby Pokémon box slots when moving around the grid and can move to surrounding controls at the grid edges; A/centre activates the focused control; B/Escape dismisses an open dialog.
+- Controller navigation: L1/R1 cycles app tabs; touch can select tabs; D-pad and either joystick navigate controls and Pokémon boxes only. Box movement is locked to the adjacent row/column slot so Right does not jump to a button above; A/centre activates the focused control; B/Escape dismisses an open dialog.
 
 Scan detection is heuristic and does not guarantee every emulator save will be found. Android may deny access to protected directories; add any accessible save directories separately.
 
 
-## v0.12.24-alpha
+## v0.12.25-alpha
 
-- Experimental AYN Thor secondary-screen Pokémon details panel using Android presentation displays.
-- Selecting a Pokémon updates the lower-screen details panel when the device exposes a usable secondary display; single-screen devices retain the existing details dialog.
-- Reduced Android/WebView gray tap/focus highlighting while retaining a visible mint controller-focus outline.
-- Requires testing on the physical AYN Thor; firmware may restrict secondary-display presentations.
+- Adds a persisted Single Screen / Dual Screen setting and live Android display diagnostics.
+- Dual Screen actively creates a standard Android `Presentation` for selected Pokémon details whenever firmware exposes a non-default display. If it does not, the regular in-app details dialog remains the fallback.
+- Includes a primary/secondary role-swap control with an explicit disabled state: standard Android does not provide an API to move this already-running activity between the Thor's built-in panels, so ThorVault never reports a fabricated swap.
+- L1/R1 and touch are now the only tab controls; D-pad and analog sticks navigate only the active view. Pokémon-box navigation follows exact horizontal/vertical neighbours.

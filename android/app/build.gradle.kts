@@ -7,8 +7,8 @@ android {
         applicationId = "uk.snetwork.thorvault"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1224
-        versionName = "0.12.24-alpha"
+        versionCode = 1225
+        versionName = "0.12.25-alpha"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

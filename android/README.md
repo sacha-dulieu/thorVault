@@ -1,4 +1,4 @@
-# ThorVault Android v0.12.23-alpha
+# ThorVault Android v0.12.25-alpha
 
 ## Offline-first save handling
 

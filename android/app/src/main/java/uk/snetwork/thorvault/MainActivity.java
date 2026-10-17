@@ -16,9 +16,11 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Looper;
 import android.provider.OpenableColumns;
 import android.provider.DocumentsContract;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
@@ -54,6 +56,8 @@ import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MainActivity extends ComponentActivity {
@@ -113,10 +117,27 @@ public final class MainActivity extends ComponentActivity {
   private SharedPreferences prefs;
   private ActivityResultLauncher<Uri> folderPicker;
   private final Map<String, AtomicBoolean> activeScans = new ConcurrentHashMap<>();
+  private String lastDualScreenPokemonJson = "";
+  private long lastControllerAxisAt = 0;
+  private String lastControllerAxisDirection = "";
+  private final DisplayManager.DisplayListener displayListener = new DisplayManager.DisplayListener() {
+    @Override public void onDisplayAdded(int displayId) { notifyDualScreenChanged(); }
+    @Override public void onDisplayRemoved(int displayId) {
+      if (pokemonDetailsPresentation != null &&
+          pokemonDetailsPresentation.getDisplay().getDisplayId() == displayId) {
+        try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
+        pokemonDetailsPresentation = null;
+      }
+      notifyDualScreenChanged();
+    }
+    @Override public void onDisplayChanged(int displayId) { notifyDualScreenChanged(); }
+  };
 
   @Override protected void onCreate(Bundle state) {
     super.onCreate(state);
     prefs = getSharedPreferences(VaultSyncWorker.PREFS, Context.MODE_PRIVATE);
+    DisplayManager displayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+    if (displayManager != null) displayManager.registerDisplayListener(displayListener, null);
     folderPicker = registerForActivityResult(
         new ActivityResultContracts.OpenDocumentTree(),
         uri -> {
@@ -149,13 +170,13 @@ public final class MainActivity extends ComponentActivity {
     settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
     settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
     settings.setUserAgentString(
-        settings.getUserAgentString() + " ThorVaultAndroid/0.12.24"
+        settings.getUserAgentString() + " ThorVaultAndroid/0.12.25"
     );
     String bundledVersion = prefs.getString("web_asset_version", "");
-    if (!"0.12.24".equals(bundledVersion)) {
+    if (!"0.12.25".equals(bundledVersion)) {
       webView.clearCache(true);
       webView.clearHistory();
-      prefs.edit().putString("web_asset_version", "0.12.24").apply();
+      prefs.edit().putString("web_asset_version", "0.12.25").apply();
     }
 
     WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
@@ -180,10 +201,12 @@ public final class MainActivity extends ComponentActivity {
       }
     });
     webView.addJavascriptInterface(new Bridge(), "ThorVaultNative");
-    webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=1224");
+    webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=1225");
   }
 
   @Override protected void onDestroy() {
+    DisplayManager displayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+    if (displayManager != null) displayManager.unregisterDisplayListener(displayListener);
     if (pokemonDetailsPresentation != null) {
       try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
       pokemonDetailsPresentation = null;
@@ -199,12 +222,19 @@ public final class MainActivity extends ComponentActivity {
   private Display findSecondaryPresentationDisplay() {
     DisplayManager manager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
     if (manager == null) return null;
+    int preferredId = prefs.getInt("dual_screen_display_id", -1);
     Display[] suitable = manager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
+    for (Display display : suitable) {
+      if (display != null && display.getDisplayId() == preferredId) return display;
+    }
     for (Display display : suitable) {
       if (display != null && display.getDisplayId() != Display.DEFAULT_DISPLAY) return display;
     }
     // Some handheld firmware exposes its built-in lower panel as a secondary display
     // without adding it to DISPLAY_CATEGORY_PRESENTATION. Try it as a best-effort fallback.
+    for (Display display : manager.getDisplays()) {
+      if (display != null && display.getDisplayId() == preferredId) return display;
+    }
     for (Display display : manager.getDisplays()) {
       if (display != null && display.getDisplayId() != Display.DEFAULT_DISPLAY) return display;
     }
@@ -212,6 +242,7 @@ public final class MainActivity extends ComponentActivity {
   }
 
   private boolean updateBottomScreenPokemon(String json) {
+    if (!prefs.getBoolean("dual_screen_enabled", false)) return false;
     final JSONObject data;
     final Display display = findSecondaryPresentationDisplay();
     if (display == null) return false;
@@ -220,7 +251,10 @@ public final class MainActivity extends ComponentActivity {
     } catch (Exception error) {
       return false;
     }
-    runOnUiThread(() -> {
+    lastDualScreenPokemonJson = json == null ? "{}" : json;
+    AtomicBoolean shown = new AtomicBoolean(false);
+    CountDownLatch complete = new CountDownLatch(1);
+    Runnable present = () -> {
       try {
         if (pokemonDetailsPresentation == null ||
             pokemonDetailsPresentation.getDisplay().getDisplayId() != display.getDisplayId()) {
@@ -231,15 +265,87 @@ public final class MainActivity extends ComponentActivity {
           pokemonDetailsPresentation.show();
         }
         pokemonDetailsPresentation.updatePokemon(data);
+        shown.set(true);
       } catch (Exception error) {
         android.util.Log.w("ThorVault", "Could not show Pokémon details on the secondary display", error);
         if (pokemonDetailsPresentation != null) {
           try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
           pokemonDetailsPresentation = null;
         }
+      } finally {
+        complete.countDown();
       }
-    });
-    return true;
+    };
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      present.run();
+    } else {
+      runOnUiThread(present);
+      try { complete.await(750, TimeUnit.MILLISECONDS); }
+      catch (InterruptedException error) { Thread.currentThread().interrupt(); }
+    }
+    return shown.get();
+  }
+
+  private void notifyDualScreenChanged() {
+    if (webView == null) return;
+    webView.post(() -> webView.evaluateJavascript(
+        "if(window.thorVaultDualScreenStatusChanged){window.thorVaultDualScreenStatusChanged();}", null));
+  }
+
+  private JSONObject dualScreenStatus() {
+    JSONObject status = new JSONObject();
+    try {
+      DisplayManager manager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+      JSONArray displays = new JSONArray();
+      int exposedSecondaryCount = 0;
+      if (manager != null) {
+        for (Display display : manager.getDisplays()) {
+          if (display == null) continue;
+          boolean isDefault = display.getDisplayId() == Display.DEFAULT_DISPLAY;
+          if (!isDefault) exposedSecondaryCount++;
+          displays.put(new JSONObject()
+              .put("id", display.getDisplayId())
+              .put("name", display.getName())
+              .put("default", isDefault)
+              .put("state", display.getState()));
+        }
+      }
+      Display target = findSecondaryPresentationDisplay();
+      boolean enabled = prefs.getBoolean("dual_screen_enabled", false);
+      status.put("ok", true)
+          .put("enabled", enabled)
+          .put("exposedSecondaryCount", exposedSecondaryCount)
+          .put("secondaryAvailable", target != null)
+          .put("targetDisplayId", target == null ? -1 : target.getDisplayId())
+          .put("targetDisplayName", target == null ? "" : target.getName())
+          .put("presentationActive", pokemonDetailsPresentation != null)
+          .put("roleSwapSupported", false)
+          .put("displays", displays)
+          .put("message", target != null
+              ? "Android exposes a secondary display. ThorVault will place Pokémon details there while Dual Screen is enabled."
+              : "Android has not exposed the Thor lower panel as a second display to this app. The standard details dialog will be used instead.");
+    } catch (Exception error) {
+      try { status.put("ok", false).put("error", error.getMessage()); } catch (Exception ignored) {}
+    }
+    return status;
+  }
+
+  private void setDualScreenEnabled(boolean enabled) {
+    prefs.edit().putBoolean("dual_screen_enabled", enabled).apply();
+    if (!enabled) {
+      runOnUiThread(() -> {
+        if (pokemonDetailsPresentation != null) {
+          try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
+          pokemonDetailsPresentation = null;
+        }
+      });
+    } else {
+      // Open the secondary panel immediately when the user selects Dual Screen,
+      // rather than waiting for a later detail action. This is the strongest
+      // behaviour available through standard Android display APIs.
+      updateBottomScreenPokemon(lastDualScreenPokemonJson.isEmpty() ? "{}" : lastDualScreenPokemonJson);
+    }
+    notifyDualScreenChanged();
   }
 
   private final class PokemonDetailsPresentation extends Presentation {
@@ -372,10 +478,7 @@ public final class MainActivity extends ComponentActivity {
         String direction = code == KeyEvent.KEYCODE_DPAD_UP ? "up" :
             (code == KeyEvent.KEYCODE_DPAD_DOWN ? "down" :
             (code == KeyEvent.KEYCODE_DPAD_LEFT ? "left" : "right"));
-        webView.evaluateJavascript(
-            "if(window.thorVaultMoveControllerFocus){window.thorVaultMoveControllerFocus(" +
-            JSONObject.quote(direction) + ");}", null
-        );
+        sendControllerFocus(direction);
         return true;
       }
       if (code == KeyEvent.KEYCODE_BUTTON_A || code == KeyEvent.KEYCODE_DPAD_CENTER) {
@@ -392,6 +495,43 @@ public final class MainActivity extends ComponentActivity {
       }
     }
     return super.dispatchKeyEvent(event);
+  }
+
+  private void sendControllerFocus(String direction) {
+    if (webView == null) return;
+    webView.evaluateJavascript(
+        "if(window.thorVaultMoveControllerFocus){window.thorVaultMoveControllerFocus(" +
+        JSONObject.quote(direction) + ");}", null
+    );
+  }
+
+  @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
+    if (event != null && event.getAction() == MotionEvent.ACTION_MOVE && webView != null &&
+        (event.getSource() & android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK) {
+      float x = event.getAxisValue(MotionEvent.AXIS_HAT_X);
+      float y = event.getAxisValue(MotionEvent.AXIS_HAT_Y);
+      if (Math.abs(x) < 0.5f && Math.abs(y) < 0.5f) {
+        x = event.getAxisValue(MotionEvent.AXIS_X);
+        y = event.getAxisValue(MotionEvent.AXIS_Y);
+      }
+      String direction = "";
+      if (Math.max(Math.abs(x), Math.abs(y)) >= 0.58f) {
+        if (Math.abs(x) >= Math.abs(y)) direction = x < 0 ? "left" : "right";
+        else direction = y < 0 ? "up" : "down";
+      }
+      if (direction.isEmpty()) {
+        lastControllerAxisDirection = "";
+        return true;
+      }
+      long now = System.currentTimeMillis();
+      if (!direction.equals(lastControllerAxisDirection) || now - lastControllerAxisAt >= 160) {
+        lastControllerAxisDirection = direction;
+        lastControllerAxisAt = now;
+        sendControllerFocus(direction);
+      }
+      return true;
+    }
+    return super.dispatchGenericMotionEvent(event);
   }
 
   @Override protected void onPause() {
@@ -568,6 +708,28 @@ public final class MainActivity extends ComponentActivity {
   }
 
   private final class Bridge {
+    @JavascriptInterface public String getDualScreenStatus() {
+      return dualScreenStatus().toString();
+    }
+
+    @JavascriptInterface public String setDualScreenEnabled(boolean enabled) {
+      MainActivity.this.setDualScreenEnabled(enabled);
+      return dualScreenStatus().toString();
+    }
+
+    @JavascriptInterface public String swapDualScreenRoles() {
+      // Android's public display APIs can create a Presentation on an exposed
+      // secondary display, but cannot move this already-running activity to the
+      // other built-in panel. Do not claim that a firmware-only role swap worked.
+      JSONObject result = dualScreenStatus();
+      try {
+        result.put("ok", false).put("error",
+            "This device does not expose a public API for moving ThorVault's main screen. " +
+            "The main app remains on the default display and details use the exposed secondary display when available.");
+      } catch (Exception ignored) {}
+      return result.toString();
+    }
+
     @JavascriptInterface public boolean showPokemonOnBottomScreen(String json) {
       return updateBottomScreenPokemon(json);
     }
@@ -963,7 +1125,7 @@ public final class MainActivity extends ComponentActivity {
           connection.setRequestProperty(key, headers.optString(key, ""));
         }
         connection.setRequestProperty(
-            "X-ThorVault-Client-Version", "0.12.23"
+            "X-ThorVault-Client-Version", "0.12.25"
         );
         connection.setRequestProperty("X-ThorVault-Api-Version", "1");
         connection.setRequestProperty(

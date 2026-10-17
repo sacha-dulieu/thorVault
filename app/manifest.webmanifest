@@ -1,7 +1,7 @@
 {
   "name": "ThorVault",
   "short_name": "ThorVault",
-  "description": "ThorVault v0.12.23-alpha with explicit wasm-tools workload restore for the local PKHeX.Core WebAssembly engine",
+  "description": "ThorVault v0.12.25-alpha with configurable Android dual-screen details and controller navigation",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#080c18",

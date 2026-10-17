@@ -151,7 +151,7 @@ public final class VaultSyncWorker extends Worker {
     c.setConnectTimeout(5000);
     c.setReadTimeout(10000);
     c.setRequestProperty("X-ThorVault-Token", token);
-    c.setRequestProperty("X-ThorVault-Client-Version", "0.12.23");
+    c.setRequestProperty("X-ThorVault-Client-Version", "0.12.25");
     c.setRequestProperty("X-ThorVault-Api-Version", "1");
     c.setRequestProperty("X-ThorVault-Platform", "android-worker");
     c.setRequestProperty("Accept", "application/json");
