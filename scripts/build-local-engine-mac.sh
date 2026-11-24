@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
 PROJECT="$ROOT/engine/ThorVault.Engine.Wasm"
 WEB_OUT="$ROOT/app/local-engine"
 ANDROID_OUT="$ROOT/android/app/src/main/assets/www/local-engine"
@@ -43,9 +44,20 @@ fi
 
 [ -f "$BOOTSTRAP" ] || { echo "ERROR: missing WASM bootstrap: $BOOTSTRAP"; exit 1; }
 
-echo "Using .NET SDK:"
+SDK_VERSION="$("$DOTNET_BIN" --version)"
+case "$SDK_VERSION" in
+  10.*) ;;
+  *)
+    echo "ERROR: global.json should select .NET 10, but the selected SDK is $SDK_VERSION."
+    echo "Installed SDKs:"
+    "$DOTNET_BIN" --list-sdks || true
+    exit 1
+    ;;
+esac
+
+echo "Using .NET SDK (pinned by global.json):"
 echo "  $DOTNET_BIN"
-echo "  $("$DOTNET_BIN" --version)"
+echo "  $SDK_VERSION"
 echo
 echo "Restoring required .NET workloads..."
 "$DOTNET_BIN" workload restore "$PROJECT/ThorVault.Engine.Wasm.csproj"

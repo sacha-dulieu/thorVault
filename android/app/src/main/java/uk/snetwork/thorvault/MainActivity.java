@@ -1,6 +1,7 @@
 package uk.snetwork.thorvault;
 
 import android.content.Context;
+import android.app.ActivityOptions;
 import android.app.Presentation;
 import android.hardware.display.DisplayManager;
 import android.view.Display;
@@ -16,6 +17,7 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.os.Looper;
 import android.provider.OpenableColumns;
 import android.provider.DocumentsContract;
@@ -55,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
+import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -67,6 +70,13 @@ public final class MainActivity extends ComponentActivity {
   private static final int MAX_SCAN_DEPTH = 24;
   private static final int MAX_SCAN_VISITS = 50000;
   private static final int MAX_SCAN_RESULTS = 1000;
+  private static final String PREF_DUAL_SCREEN_ENABLED = "dual_screen_enabled";
+  private static final String PREF_DISPLAY_STATUS = "dual_screen_status";
+  private static final String PREF_LAST_SECONDARY_JSON = "dual_screen_last_pokemon_json";
+  private static final String EXTRA_ROLE_SWAP_LAUNCH = "thorvault_role_swap_launch";
+  private static final String EXTRA_EXPECTED_DISPLAY_ID = "thorvault_expected_display_id";
+  private static final String EXTRA_PREVIOUS_DISPLAY_ID = "thorvault_previous_display_id";
+  private static volatile WeakReference<MainActivity> activeMainActivity = new WeakReference<>(null);
 
   private static final class ScanStats {
     int visited = 0;
@@ -114,30 +124,23 @@ public final class MainActivity extends ComponentActivity {
 
   private WebView webView;
   private PokemonDetailsPresentation pokemonDetailsPresentation;
+  private MainActivity swapSourceActivity;
+  private boolean roleSwapLaunchHandled = false;
+  private boolean roleSwapCompletionScheduled = false;
   private SharedPreferences prefs;
   private ActivityResultLauncher<Uri> folderPicker;
   private final Map<String, AtomicBoolean> activeScans = new ConcurrentHashMap<>();
-  private String lastDualScreenPokemonJson = "";
-  private long lastControllerAxisAt = 0;
-  private String lastControllerAxisDirection = "";
-  private final DisplayManager.DisplayListener displayListener = new DisplayManager.DisplayListener() {
-    @Override public void onDisplayAdded(int displayId) { notifyDualScreenChanged(); }
-    @Override public void onDisplayRemoved(int displayId) {
-      if (pokemonDetailsPresentation != null &&
-          pokemonDetailsPresentation.getDisplay().getDisplayId() == displayId) {
-        try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
-        pokemonDetailsPresentation = null;
-      }
-      notifyDualScreenChanged();
-    }
-    @Override public void onDisplayChanged(int displayId) { notifyDualScreenChanged(); }
-  };
 
   @Override protected void onCreate(Bundle state) {
     super.onCreate(state);
+    boolean isRoleSwapLaunch = getIntent().getBooleanExtra(EXTRA_ROLE_SWAP_LAUNCH, false);
+    MainActivity previousMain = activeMainActivity == null ? null : activeMainActivity.get();
+    if (isRoleSwapLaunch && previousMain != this) swapSourceActivity = previousMain;
+    activeMainActivity = new WeakReference<>(this);
     prefs = getSharedPreferences(VaultSyncWorker.PREFS, Context.MODE_PRIVATE);
-    DisplayManager displayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-    if (displayManager != null) displayManager.registerDisplayListener(displayListener, null);
+    if (!prefs.contains(PREF_DUAL_SCREEN_ENABLED)) {
+      prefs.edit().putBoolean(PREF_DUAL_SCREEN_ENABLED, true).apply();
+    }
     folderPicker = registerForActivityResult(
         new ActivityResultContracts.OpenDocumentTree(),
         uri -> {
@@ -205,8 +208,6 @@ public final class MainActivity extends ComponentActivity {
   }
 
   @Override protected void onDestroy() {
-    DisplayManager displayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-    if (displayManager != null) displayManager.unregisterDisplayListener(displayListener);
     if (pokemonDetailsPresentation != null) {
       try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
       pokemonDetailsPresentation = null;
@@ -216,46 +217,113 @@ public final class MainActivity extends ComponentActivity {
       webView.destroy();
       webView = null;
     }
+    if (activeMainActivity != null && activeMainActivity.get() == this) {
+      if (isFinishing()) SecondaryScreenActivity.closeActive();
+      activeMainActivity = new WeakReference<>(swapSourceActivity != null && !swapSourceActivity.isFinishing() ? swapSourceActivity : null);
+    }
     super.onDestroy();
   }
 
-  private Display findSecondaryPresentationDisplay() {
+  @Override protected void onPostResume() {
+    super.onPostResume();
+    if (!roleSwapCompletionScheduled && getIntent().getBooleanExtra(EXTRA_ROLE_SWAP_LAUNCH, false)) {
+      roleSwapCompletionScheduled = true;
+      getWindow().getDecorView().postDelayed(this::completeRoleSwapLaunch, 350);
+    }
+  }
+
+  private int currentDisplayId() {
+    if (Build.VERSION.SDK_INT < 30) return Display.DEFAULT_DISPLAY;
+    try {
+      Display current = getDisplay();
+      return current == null ? Display.DEFAULT_DISPLAY : current.getDisplayId();
+    } catch (Exception ignored) {
+      return Display.DEFAULT_DISPLAY;
+    }
+  }
+
+  private Display findDisplayById(int displayId) {
     DisplayManager manager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
     if (manager == null) return null;
-    int preferredId = prefs.getInt("dual_screen_display_id", -1);
-    Display[] suitable = manager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
-    for (Display display : suitable) {
-      if (display != null && display.getDisplayId() == preferredId) return display;
-    }
-    for (Display display : suitable) {
-      if (display != null && display.getDisplayId() != Display.DEFAULT_DISPLAY) return display;
-    }
-    // Some handheld firmware exposes its built-in lower panel as a secondary display
-    // without adding it to DISPLAY_CATEGORY_PRESENTATION. Try it as a best-effort fallback.
     for (Display display : manager.getDisplays()) {
-      if (display != null && display.getDisplayId() == preferredId) return display;
-    }
-    for (Display display : manager.getDisplays()) {
-      if (display != null && display.getDisplayId() != Display.DEFAULT_DISPLAY) return display;
+      if (display != null && display.getDisplayId() == displayId) return display;
     }
     return null;
   }
 
-  private boolean updateBottomScreenPokemon(String json) {
-    if (!prefs.getBoolean("dual_screen_enabled", false)) return false;
-    final JSONObject data;
-    final Display display = findSecondaryPresentationDisplay();
-    if (display == null) return false;
-    try {
-      data = new JSONObject(json == null ? "{}" : json);
-    } catch (Exception error) {
-      return false;
+  private Display findOtherDisplay() {
+    DisplayManager manager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+    if (manager == null) return null;
+    int ownId = currentDisplayId();
+    Display[] displays = manager.getDisplays();
+    java.util.Arrays.sort(displays, Comparator.comparingInt(Display::getDisplayId));
+    // Prefer a display explicitly categorized for presentations, but also inspect
+    // every non-current logical display because some dual-screen firmware omits
+    // its built-in panel from DISPLAY_CATEGORY_PRESENTATION.
+    for (Display display : manager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)) {
+      if (display != null && display.getDisplayId() != ownId) return display;
     }
-    lastDualScreenPokemonJson = json == null ? "{}" : json;
-    AtomicBoolean shown = new AtomicBoolean(false);
-    CountDownLatch complete = new CountDownLatch(1);
-    Runnable present = () -> {
+    for (Display display : displays) {
+      if (display != null && display.getDisplayId() != ownId) return display;
+    }
+    return null;
+  }
+
+  private JSONArray getAvailableDisplaysJson() {
+    JSONArray list = new JSONArray();
+    DisplayManager manager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+    if (manager == null) return list;
+    Display[] displays = manager.getDisplays();
+    java.util.Arrays.sort(displays, Comparator.comparingInt(Display::getDisplayId));
+    for (Display display : displays) {
+      if (display == null) continue;
       try {
+        JSONObject item = new JSONObject();
+        item.put("id", display.getDisplayId());
+        item.put("name", display.getName() == null ? "Display" : display.getName());
+        item.put("state", display.getState());
+        item.put("rotation", display.getRotation());
+        item.put("isCurrent", display.getDisplayId() == currentDisplayId());
+        list.put(item);
+      } catch (Exception ignored) {}
+    }
+    return list;
+  }
+
+  private String dualScreenStatusJson(String message) {
+    try {
+      JSONObject result = new JSONObject();
+      Display other = findOtherDisplay();
+      result.put("ok", other != null);
+      result.put("enabled", prefs != null && prefs.getBoolean(PREF_DUAL_SCREEN_ENABLED, true));
+      result.put("currentDisplayId", currentDisplayId());
+      result.put("secondaryDisplayId", other == null ? JSONObject.NULL : other.getDisplayId());
+      result.put("secondaryActivityDisplayId", SecondaryScreenActivity.getActiveDisplayId());
+      result.put("presentationVisible", pokemonDetailsPresentation != null);
+      result.put("displays", getAvailableDisplaysJson());
+      String status = message;
+      if (status == null || status.isEmpty()) status = prefs == null ? "" : prefs.getString(PREF_DISPLAY_STATUS, "");
+      result.put("message", status == null ? "" : status);
+      return result.toString();
+    } catch (Exception error) {
+      return "{\"ok\":false,\"enabled\":false,\"message\":\"Could not read display status.\"}";
+    }
+  }
+
+  private void saveDisplayStatus(String message) {
+    if (prefs != null) prefs.edit().putString(PREF_DISPLAY_STATUS, message == null ? "" : message).apply();
+  }
+
+  private boolean showFallbackPresentation(int displayId, JSONObject data) {
+    final AtomicBoolean success = new AtomicBoolean(false);
+    final CountDownLatch finished = new CountDownLatch(1);
+    Runnable show = () -> {
+      try {
+        Display display = findDisplayById(displayId);
+        if (display == null || display.getDisplayId() == currentDisplayId()) {
+          saveDisplayStatus("No separate display is available for the Pokémon details panel.");
+          return;
+        }
         if (pokemonDetailsPresentation == null ||
             pokemonDetailsPresentation.getDisplay().getDisplayId() != display.getDisplayId()) {
           if (pokemonDetailsPresentation != null) {
@@ -264,88 +332,169 @@ public final class MainActivity extends ComponentActivity {
           pokemonDetailsPresentation = new PokemonDetailsPresentation(MainActivity.this, display);
           pokemonDetailsPresentation.show();
         }
-        pokemonDetailsPresentation.updatePokemon(data);
-        shown.set(true);
+        if (data == null || data.length() == 0) pokemonDetailsPresentation.showWaitingForPokemon();
+        else pokemonDetailsPresentation.updatePokemon(data);
+        success.set(true);
+        saveDisplayStatus("Dual-screen mode is using Android Presentation on display " + displayId + ".");
       } catch (Exception error) {
-        android.util.Log.w("ThorVault", "Could not show Pokémon details on the secondary display", error);
+        android.util.Log.w("ThorVault", "Could not show a presentation on display " + displayId, error);
+        saveDisplayStatus("Android rejected the secondary display: " + error.getClass().getSimpleName() +
+            (error.getMessage() == null ? "" : " — " + error.getMessage()));
         if (pokemonDetailsPresentation != null) {
           try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
           pokemonDetailsPresentation = null;
         }
       } finally {
-        complete.countDown();
+        finished.countDown();
+      }
+    };
+    if (Looper.myLooper() == Looper.getMainLooper()) show.run();
+    else runOnUiThread(show);
+    try { finished.await(1800, TimeUnit.MILLISECONDS); }
+    catch (InterruptedException error) { Thread.currentThread().interrupt(); }
+    return success.get();
+  }
+
+  private boolean openSecondaryScreenOnDisplay(int displayId, String json) {
+    if (SecondaryScreenActivity.isActiveOn(displayId)) {
+      SecondaryScreenActivity.updateActiveOnDisplay(displayId, json);
+      if (pokemonDetailsPresentation != null) {
+        try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
+        pokemonDetailsPresentation = null;
+      }
+      saveDisplayStatus("Dual-screen mode active. ThorVault is on display " + currentDisplayId() +
+          "; Pokémon details are on display " + displayId + ".");
+      return true;
+    }
+
+    final CountDownLatch ready = SecondaryScreenActivity.prepareLaunch(displayId);
+    Runnable launch = () -> {
+      try {
+        Display display = findDisplayById(displayId);
+        if (display == null || display.getDisplayId() == currentDisplayId()) {
+          SecondaryScreenActivity.reportLaunchResult(displayId, false, "The target display is no longer available.");
+          return;
+        }
+        Intent intent = new Intent(MainActivity.this, SecondaryScreenActivity.class);
+        intent.putExtra(EXTRA_EXPECTED_DISPLAY_ID, displayId);
+        intent.putExtra(SecondaryScreenActivity.EXTRA_POKEMON_JSON, json == null ? "{}" : json);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+        ActivityOptions options = ActivityOptions.makeBasic();
+        options.setLaunchDisplayId(displayId);
+        startActivity(intent, options.toBundle());
+      } catch (Exception error) {
+        SecondaryScreenActivity.reportLaunchResult(displayId, false,
+            "Could not launch the secondary screen: " + error.getClass().getSimpleName() +
+            (error.getMessage() == null ? "" : " — " + error.getMessage()));
       }
     };
     if (Looper.myLooper() == Looper.getMainLooper()) {
-      present.run();
-    } else {
-      runOnUiThread(present);
-      try { complete.await(750, TimeUnit.MILLISECONDS); }
+      launch.run();
+      // onResume must run on the main thread; do not block it. The status screen
+      // is refreshed by the caller after this transition.
+      saveDisplayStatus("Opening ThorVault on secondary display " + displayId + "…");
+      return true;
+    }
+    runOnUiThread(launch);
+    try { ready.await(2200, TimeUnit.MILLISECONDS); }
+    catch (InterruptedException error) { Thread.currentThread().interrupt(); }
+    boolean success = SecondaryScreenActivity.wasLastLaunchSuccessful(displayId) &&
+        SecondaryScreenActivity.isActiveOn(displayId);
+    if (success) {
+      if (pokemonDetailsPresentation != null) {
+        runOnUiThread(() -> {
+          if (pokemonDetailsPresentation != null) {
+            try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
+            pokemonDetailsPresentation = null;
+          }
+        });
+      }
+      saveDisplayStatus("Dual-screen mode active. ThorVault is on display " + currentDisplayId() +
+          "; Pokémon details are on display " + displayId + ".");
+    }
+    return success;
+  }
+
+  private boolean updateBottomScreenPokemon(String json) {
+    if (prefs != null && !prefs.getBoolean(PREF_DUAL_SCREEN_ENABLED, true)) return false;
+    final JSONObject data;
+    try {
+      data = new JSONObject(json == null || json.isEmpty() ? "{}" : json);
+    } catch (Exception error) {
+      saveDisplayStatus("The selected Pokémon details could not be parsed.");
+      return false;
+    }
+    prefs.edit().putString(PREF_LAST_SECONDARY_JSON, data.toString()).apply();
+    Display display = findOtherDisplay();
+    if (display == null) {
+      saveDisplayStatus("Dual-screen mode is enabled, but Android reports only one available display. Check the AYN display settings or firmware.");
+      return false;
+    }
+    int targetId = display.getDisplayId();
+    if (openSecondaryScreenOnDisplay(targetId, data.toString())) return true;
+    return showFallbackPresentation(targetId, data);
+  }
+
+  private void closeSecondaryScreens() {
+    Runnable close = () -> {
+      SecondaryScreenActivity.closeActive();
+      if (pokemonDetailsPresentation != null) {
+        try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
+        pokemonDetailsPresentation = null;
+      }
+    };
+    if (Looper.myLooper() == Looper.getMainLooper()) close.run();
+    else {
+      CountDownLatch finished = new CountDownLatch(1);
+      runOnUiThread(() -> { try { close.run(); } finally { finished.countDown(); } });
+      try { finished.await(1200, TimeUnit.MILLISECONDS); }
       catch (InterruptedException error) { Thread.currentThread().interrupt(); }
     }
-    return shown.get();
   }
 
-  private void notifyDualScreenChanged() {
-    if (webView == null) return;
-    webView.post(() -> webView.evaluateJavascript(
-        "if(window.thorVaultDualScreenStatusChanged){window.thorVaultDualScreenStatusChanged();}", null));
-  }
-
-  private JSONObject dualScreenStatus() {
-    JSONObject status = new JSONObject();
-    try {
-      DisplayManager manager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-      JSONArray displays = new JSONArray();
-      int exposedSecondaryCount = 0;
-      if (manager != null) {
-        for (Display display : manager.getDisplays()) {
-          if (display == null) continue;
-          boolean isDefault = display.getDisplayId() == Display.DEFAULT_DISPLAY;
-          if (!isDefault) exposedSecondaryCount++;
-          displays.put(new JSONObject()
-              .put("id", display.getDisplayId())
-              .put("name", display.getName())
-              .put("default", isDefault)
-              .put("state", display.getState()));
-        }
+  private void completeRoleSwapLaunch() {
+    if (roleSwapLaunchHandled || !getIntent().getBooleanExtra(EXTRA_ROLE_SWAP_LAUNCH, false)) return;
+    roleSwapLaunchHandled = true;
+    int expectedDisplayId = getIntent().getIntExtra(EXTRA_EXPECTED_DISPLAY_ID, Display.INVALID_DISPLAY);
+    int actualDisplayId = currentDisplayId();
+    if (expectedDisplayId != Display.INVALID_DISPLAY && actualDisplayId != expectedDisplayId) {
+      saveDisplayStatus("Android did not move ThorVault to the requested display. The existing screen was kept active.");
+      if (swapSourceActivity != null && !swapSourceActivity.isFinishing()) {
+        activeMainActivity = new WeakReference<>(swapSourceActivity);
       }
-      Display target = findSecondaryPresentationDisplay();
-      boolean enabled = prefs.getBoolean("dual_screen_enabled", false);
-      status.put("ok", true)
-          .put("enabled", enabled)
-          .put("exposedSecondaryCount", exposedSecondaryCount)
-          .put("secondaryAvailable", target != null)
-          .put("targetDisplayId", target == null ? -1 : target.getDisplayId())
-          .put("targetDisplayName", target == null ? "" : target.getName())
-          .put("presentationActive", pokemonDetailsPresentation != null)
-          .put("roleSwapSupported", false)
-          .put("displays", displays)
-          .put("message", target != null
-              ? "Android exposes a secondary display. ThorVault will place Pokémon details there while Dual Screen is enabled."
-              : "Android has not exposed the Thor lower panel as a second display to this app. The standard details dialog will be used instead.");
-    } catch (Exception error) {
-      try { status.put("ok", false).put("error", error.getMessage()); } catch (Exception ignored) {}
+      finish();
+      return;
     }
-    return status;
-  }
+    if (swapSourceActivity == null || swapSourceActivity == this || swapSourceActivity.isFinishing()) {
+      saveDisplayStatus("ThorVault opened on display " + actualDisplayId + ".");
+      return;
+    }
 
-  private void setDualScreenEnabled(boolean enabled) {
-    prefs.edit().putBoolean("dual_screen_enabled", enabled).apply();
-    if (!enabled) {
-      runOnUiThread(() -> {
-        if (pokemonDetailsPresentation != null) {
-          try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
-          pokemonDetailsPresentation = null;
-        }
-      });
-    } else {
-      // Open the secondary panel immediately when the user selects Dual Screen,
-      // rather than waiting for a later detail action. This is the strongest
-      // behaviour available through standard Android display APIs.
-      updateBottomScreenPokemon(lastDualScreenPokemonJson.isEmpty() ? "{}" : lastDualScreenPokemonJson);
+    int previousDisplayId = getIntent().getIntExtra(EXTRA_PREVIOUS_DISPLAY_ID, swapSourceActivity.currentDisplayId());
+    String lastJson = prefs.getString(PREF_LAST_SECONDARY_JSON, "{}");
+    // The former secondary panel is now the main interaction screen. Close its
+    // stale details activity, then move the details activity to the former main
+    // display before finishing the old MainActivity.
+    SecondaryScreenActivity.closeIfActiveOn(actualDisplayId);
+    boolean started = openSecondaryScreenOnDisplay(previousDisplayId, lastJson);
+    if (!started) {
+      JSONObject data;
+      try { data = new JSONObject(lastJson); } catch (Exception ignored) { data = new JSONObject(); }
+      showFallbackPresentation(previousDisplayId, data);
     }
-    notifyDualScreenChanged();
+    swapSourceActivity.finish();
+    saveDisplayStatus("Screen roles swapped. ThorVault is on display " + actualDisplayId +
+        "; Pokémon details are on display " + previousDisplayId + ".");
+    if (started) {
+      getWindow().getDecorView().postDelayed(() -> {
+        if (!SecondaryScreenActivity.isActiveOn(previousDisplayId) && pokemonDetailsPresentation == null) {
+          JSONObject data;
+          try { data = new JSONObject(prefs.getString(PREF_LAST_SECONDARY_JSON, "{}")); }
+          catch (Exception ignored) { data = new JSONObject(); }
+          showFallbackPresentation(previousDisplayId, data);
+        }
+      }, 1800);
+    }
   }
 
   private final class PokemonDetailsPresentation extends Presentation {
@@ -412,13 +561,20 @@ public final class MainActivity extends ComponentActivity {
       card.addView(moves, movesParams);
 
       TextView hint = new TextView(getContext());
-      hint.setText("Select another Pokémon on the top screen to update this panel.");
+      hint.setText("Select another Pokémon on the main screen to update this panel.");
       hint.setTextColor(Color.rgb(120, 133, 163));
       hint.setTextSize(12);
       LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(-1, -2);
       hintParams.topMargin = 18;
       root.addView(hint, hintParams);
       setContentView(root);
+    }
+
+    void showWaitingForPokemon() {
+      title.setText("Select a Pokémon");
+      subtitle.setText("Dual-screen mode active");
+      facts.setText("Choose a Pokémon on the main screen to see its details here.\n\nThis panel should stay on the other screen while you browse boxes.");
+      moves.setText("Pokémon details will appear here.");
     }
 
     void updatePokemon(JSONObject data) {
@@ -466,11 +622,14 @@ public final class MainActivity extends ComponentActivity {
     if (event != null && event.getAction() == KeyEvent.ACTION_DOWN && webView != null) {
       int code = event.getKeyCode();
       if (code == KeyEvent.KEYCODE_BUTTON_L1 || code == KeyEvent.KEYCODE_BUTTON_R1) {
-        String direction = code == KeyEvent.KEYCODE_BUTTON_L1 ? "previous" : "next";
-        webView.evaluateJavascript(
-            "if(window.thorVaultHandleShoulderTab){window.thorVaultHandleShoulderTab(" +
-            JSONObject.quote(direction) + ");}", null
-        );
+        // One tab change per shoulder press; holding a shoulder must not spin through tabs.
+        if (event.getRepeatCount() == 0) {
+          String direction = code == KeyEvent.KEYCODE_BUTTON_L1 ? "previous" : "next";
+          webView.evaluateJavascript(
+              "if(window.thorVaultHandleShoulderTab){window.thorVaultHandleShoulderTab(" +
+              JSONObject.quote(direction) + ");}", null
+          );
+        }
         return true;
       }
       if (code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN ||
@@ -478,7 +637,10 @@ public final class MainActivity extends ComponentActivity {
         String direction = code == KeyEvent.KEYCODE_DPAD_UP ? "up" :
             (code == KeyEvent.KEYCODE_DPAD_DOWN ? "down" :
             (code == KeyEvent.KEYCODE_DPAD_LEFT ? "left" : "right"));
-        sendControllerFocus(direction);
+        webView.evaluateJavascript(
+            "if(window.thorVaultMoveControllerFocus){window.thorVaultMoveControllerFocus(" +
+            JSONObject.quote(direction) + ");}", null
+        );
         return true;
       }
       if (code == KeyEvent.KEYCODE_BUTTON_A || code == KeyEvent.KEYCODE_DPAD_CENTER) {
@@ -497,39 +659,52 @@ public final class MainActivity extends ComponentActivity {
     return super.dispatchKeyEvent(event);
   }
 
-  private void sendControllerFocus(String direction) {
-    if (webView == null) return;
-    webView.evaluateJavascript(
-        "if(window.thorVaultMoveControllerFocus){window.thorVaultMoveControllerFocus(" +
-        JSONObject.quote(direction) + ");}", null
-    );
-  }
+  private long lastAnalogMoveAt = 0;
+  private String lastAnalogDirection = "";
 
   @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
-    if (event != null && event.getAction() == MotionEvent.ACTION_MOVE && webView != null &&
-        (event.getSource() & android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK) {
-      float x = event.getAxisValue(MotionEvent.AXIS_HAT_X);
-      float y = event.getAxisValue(MotionEvent.AXIS_HAT_Y);
-      if (Math.abs(x) < 0.5f && Math.abs(y) < 0.5f) {
-        x = event.getAxisValue(MotionEvent.AXIS_X);
-        y = event.getAxisValue(MotionEvent.AXIS_Y);
+    if (event != null && webView != null &&
+        (event.getAction() == MotionEvent.ACTION_MOVE) &&
+        (event.getSource() & android.view.InputDevice.SOURCE_CLASS_JOYSTICK) != 0) {
+      float hatX = event.getAxisValue(MotionEvent.AXIS_HAT_X);
+      float hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y);
+      float leftX = event.getAxisValue(MotionEvent.AXIS_X);
+      float leftY = event.getAxisValue(MotionEvent.AXIS_Y);
+      float rightX = event.getAxisValue(MotionEvent.AXIS_RX);
+      float rightY = event.getAxisValue(MotionEvent.AXIS_RY);
+      if (Math.abs(rightX) < 0.35f && Math.abs(rightY) < 0.35f) {
+        rightX = event.getAxisValue(MotionEvent.AXIS_Z);
+        rightY = event.getAxisValue(MotionEvent.AXIS_RZ);
+      }
+      float x;
+      float y;
+      if (Math.abs(hatX) > 0.35f || Math.abs(hatY) > 0.35f) {
+        x = hatX; y = hatY;
+      } else if (Math.abs(leftX) > 0.35f || Math.abs(leftY) > 0.35f) {
+        x = leftX; y = leftY;
+      } else {
+        // Some controllers expose the right stick on RX/RY, others on Z/RZ.
+        x = rightX; y = rightY;
       }
       String direction = "";
-      if (Math.max(Math.abs(x), Math.abs(y)) >= 0.58f) {
+      if (Math.abs(x) > 0.60f || Math.abs(y) > 0.60f) {
         if (Math.abs(x) >= Math.abs(y)) direction = x < 0 ? "left" : "right";
         else direction = y < 0 ? "up" : "down";
       }
+      long now = android.os.SystemClock.uptimeMillis();
       if (direction.isEmpty()) {
-        lastControllerAxisDirection = "";
+        lastAnalogDirection = "";
+      } else if (!direction.equals(lastAnalogDirection) || now - lastAnalogMoveAt >= 230) {
+        lastAnalogDirection = direction;
+        lastAnalogMoveAt = now;
+        webView.evaluateJavascript(
+            "if(window.thorVaultMoveControllerFocus){window.thorVaultMoveControllerFocus(" +
+            JSONObject.quote(direction) + ");}", null
+        );
+        return true;
+      } else {
         return true;
       }
-      long now = System.currentTimeMillis();
-      if (!direction.equals(lastControllerAxisDirection) || now - lastControllerAxisAt >= 160) {
-        lastControllerAxisDirection = direction;
-        lastControllerAxisAt = now;
-        sendControllerFocus(direction);
-      }
-      return true;
     }
     return super.dispatchGenericMotionEvent(event);
   }
@@ -708,42 +883,71 @@ public final class MainActivity extends ComponentActivity {
   }
 
   private final class Bridge {
-    @JavascriptInterface public String getDualScreenStatus() {
-      return dualScreenStatus().toString();
-    }
-
-    @JavascriptInterface public String setDualScreenEnabled(boolean enabled) {
-      MainActivity.this.setDualScreenEnabled(enabled);
-      return dualScreenStatus().toString();
-    }
-
-    @JavascriptInterface public String swapDualScreenRoles() {
-      // Android's public display APIs can create a Presentation on an exposed
-      // secondary display, but cannot move this already-running activity to the
-      // other built-in panel. Do not claim that a firmware-only role swap worked.
-      JSONObject result = dualScreenStatus();
-      try {
-        result.put("ok", false).put("error",
-            "This device does not expose a public API for moving ThorVault's main screen. " +
-            "The main app remains on the default display and details use the exposed secondary display when available.");
-      } catch (Exception ignored) {}
-      return result.toString();
-    }
-
     @JavascriptInterface public boolean showPokemonOnBottomScreen(String json) {
       return updateBottomScreenPokemon(json);
     }
 
     @JavascriptInterface public void clearPokemonOnBottomScreen() {
-      runOnUiThread(() -> {
-        if (pokemonDetailsPresentation != null) {
-          try { pokemonDetailsPresentation.dismiss(); } catch (Exception ignored) {}
-          pokemonDetailsPresentation = null;
-        }
-      });
+      if (prefs != null && prefs.getBoolean(PREF_DUAL_SCREEN_ENABLED, true)) {
+        updateBottomScreenPokemon("{}");
+      } else {
+        closeSecondaryScreens();
+      }
     }
 
     @JavascriptInterface public boolean isAndroidApp() { return true; }
+
+    @JavascriptInterface public String getDualScreenStatus() {
+      return dualScreenStatusJson("");
+    }
+
+    @JavascriptInterface public String setDualScreenEnabled(boolean enabled) {
+      if (prefs != null) prefs.edit().putBoolean(PREF_DUAL_SCREEN_ENABLED, enabled).apply();
+      if (!enabled) {
+        closeSecondaryScreens();
+        saveDisplayStatus("Single-screen mode enabled. The secondary panel has been closed.");
+        return dualScreenStatusJson("");
+      }
+      boolean shown = updateBottomScreenPokemon(prefs.getString(PREF_LAST_SECONDARY_JSON, "{}"));
+      if (!shown) {
+        Display other = findOtherDisplay();
+        if (other == null) saveDisplayStatus("Dual-screen mode is enabled, but Android exposes only one display to ThorVault.");
+        else saveDisplayStatus("Dual-screen mode is enabled, but Android could not open display " + other.getDisplayId() + ". Check the status below for detected displays and launch errors.");
+      }
+      return dualScreenStatusJson("");
+    }
+
+    @JavascriptInterface public String swapDisplayRoles() {
+      if (prefs != null) prefs.edit().putBoolean(PREF_DUAL_SCREEN_ENABLED, true).apply();
+      Display other = findOtherDisplay();
+      if (other == null) {
+        saveDisplayStatus("Cannot swap screen roles because Android exposes only one display to ThorVault.");
+        return dualScreenStatusJson("");
+      }
+      final int currentId = currentDisplayId();
+      final int targetId = other.getDisplayId();
+      runOnUiThread(() -> {
+        try {
+          Intent intent = new Intent(MainActivity.this, MainActivity.class);
+          intent.putExtra(EXTRA_ROLE_SWAP_LAUNCH, true);
+          intent.putExtra(EXTRA_EXPECTED_DISPLAY_ID, targetId);
+          intent.putExtra(EXTRA_PREVIOUS_DISPLAY_ID, currentId);
+          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+          ActivityOptions options = ActivityOptions.makeBasic();
+          options.setLaunchDisplayId(targetId);
+          startActivity(intent, options.toBundle());
+          saveDisplayStatus("Requesting screen-role swap to display " + targetId + "…");
+        } catch (Exception error) {
+          saveDisplayStatus("Could not swap screen roles: " + error.getClass().getSimpleName() +
+              (error.getMessage() == null ? "" : " — " + error.getMessage()));
+        }
+      });
+      try {
+        JSONObject result = new JSONObject(dualScreenStatusJson(""));
+        result.put("ok", true).put("message", "Requesting screen-role swap to display " + targetId + "…");
+        return result.toString();
+      } catch (Exception ignored) { return dualScreenStatusJson("Requesting screen-role swap…"); }
+    }
 
     @JavascriptInterface public void chooseGameFolder() {
       runOnUiThread(() -> {

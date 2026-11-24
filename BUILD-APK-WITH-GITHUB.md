@@ -1,6 +1,6 @@
 # Build and download the ThorVault APK without building on your Mac
 
-This repository includes a GitHub Actions workflow that builds the local .NET WebAssembly engine, bundles it into the Android app, builds the APK, and uploads the APK as a downloadable workflow artifact. The app version is **0.12.25-alpha**.
+This repository includes a GitHub Actions workflow that builds the local .NET WebAssembly engine, bundles it into the Android app, builds the APK, and uploads the APK as a downloadable workflow artifact. The app version remains **0.12.25-alpha**.
 
 ## Steps
 
@@ -13,3 +13,8 @@ This repository includes a GitHub Actions workflow that builds the local .NET We
 The generated debug APK is intended for sideloading/testing. The workflow must finish successfully before an APK artifact will be available. A failed run's log will show which build step needs attention.
 
 The first build needs an internet connection on GitHub's build runner to download the .NET/Android dependencies. Once the APK is installed, save parsing and the currently implemented save-transfer engine are bundled locally; Vault sync and server backups still need the server.
+
+
+### .NET SDK selection
+
+The repository includes a root `global.json` that pins the WebAssembly engine build to .NET SDK 10.0.302. The GitHub Actions workflow checks the selected SDK before building. This prevents a newer installed SDK (for example .NET 11) from being selected accidentally and changing the WebAssembly publish output expected by the packaging script.

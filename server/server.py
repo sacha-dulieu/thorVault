@@ -19,7 +19,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-SERVER_VERSION = "0.12.25"
+SERVER_VERSION = "0.12.22"
 API_VERSION = 1
 MIN_CLIENT_API = 1
 MAX_CLIENT_API = 1
@@ -257,7 +257,7 @@ def engine_status():
     }
 
 class Handler(SimpleHTTPRequestHandler):
-    server_version = "ThorVault/0.12.25"
+    server_version = "ThorVault/0.12.22"
 
     def translate_path(self, request_path):
         relative = urlparse(request_path).path.lstrip("/") or "index.html"

@@ -849,25 +849,25 @@
   <section id="settings" class="view">
     <article class="panel" style="max-width:720px;margin:auto">
       <p class="eyebrow">CONNECTION</p><h2>Settings</h2>
+      <section id="androidDisplaySettings" class="panel" style="margin:1rem 0;padding:1rem;background:var(--panel2)">
+        <p class="eyebrow">AYN THOR DISPLAY</p><h3>Screen layout</h3>
+        <p class="meta">Dual-screen mode opens a dedicated Pokémon details screen on the other Android display. The app will report if the device firmware prevents that.</p>
+        <div class="server-test-actions" style="display:flex;flex-wrap:wrap;gap:.5rem;margin:.75rem 0">
+          <button id="singleScreenMode" type="button">Single screen</button>
+          <button id="dualScreenMode" type="button">Dual screen</button>
+          <button id="swapDisplayRoles" type="button">Swap primary / secondary</button>
+          <button id="refreshDisplayStatus" type="button">Refresh display status</button>
+        </div>
+        <div id="dualScreenStatus" class="shared-vault-status" role="status" aria-live="polite">
+          <strong>Display status not checked yet.</strong>
+          <p class="meta">Shows the displays that Android makes available to ThorVault.</p>
+        </div>
+      </section>
       <form id="settingsForm" class="stack">
         <label>Device name<input name="deviceName" required></label>
         <label>Server URL<input name="serverUrl" placeholder="http://192.168.1.24:8765"></label>
         <label>Access token<input name="token" type="password" autocomplete="off"></label>
         <label class="checkbox"><input name="autoBackup" type="checkbox">Automatically sync Vault after local changes (debounced)</label>
-        <div class="compat-box">
-          <strong>AYN Thor screen mode</strong>
-          <label class="checkbox"><input id="dualScreenEnabled" name="dualScreenEnabled" type="checkbox">Dual Screen — keep ThorVault on the default screen and show selected Pokémon details on Android's exposed secondary display</label>
-          <p class="meta">Single Screen keeps details in the normal in-app dialog. Dual Screen is only used when Android firmware actually exposes a second display to ThorVault.</p>
-          <div id="dualScreenStatus" class="shared-vault-status warn">
-            <strong>Checking display support…</strong>
-            <p class="meta">This check is available in the installed Android app.</p>
-          </div>
-          <div class="actions">
-            <button id="refreshDualScreenStatus" type="button">Check display support</button>
-            <button id="swapDualScreenRoles" type="button">Swap primary / secondary screens</button>
-          </div>
-          <p id="dualScreenSwapNote" class="meta">The swap control is only available when device firmware provides a public way to move an existing app between built-in displays.</p>
-        </div>
         <button class="primary">Save settings</button>
       </form>
       <div class="server-test-actions">
@@ -1364,7 +1364,7 @@
       serverUrl: storedSettings.serverUrl || window.location.origin,
       token: storedSettings.token || "",
       autoBackup: storedSettings.autoBackup !== false,
-      dualScreenEnabled: storedSettings.dualScreenEnabled === true
+      dualScreenEnabled: storedSettings.dualScreenEnabled !== false
     };
     var isAndroidShell = false;
     try {
@@ -1663,46 +1663,6 @@
         catch (error) { console.warn("Android settings persistence failed", error); }
       }
     }
-    function setDualScreenStatus(kind, title, message) {
-      var panel = $("#dualScreenStatus");
-      if (!panel) return;
-      panel.className = "shared-vault-status " + (kind || "warn");
-      panel.innerHTML = "<strong>" + escapeHtml(title || "Display support") + "</strong><p class=\"meta\">" +
-        escapeHtml(message || "") + "</p>";
-    }
-    function readDualScreenStatus() {
-      if (!window.ThorVaultNative || typeof window.ThorVaultNative.getDualScreenStatus !== "function") {
-        return {ok:false, error:"Display diagnostics are available only in the installed Android app."};
-      }
-      try { return JSON.parse(window.ThorVaultNative.getDualScreenStatus()); }
-      catch (error) { return {ok:false, error:error.message || "Android returned invalid display diagnostics."}; }
-    }
-    function renderDualScreenStatus(status) {
-      var toggle = $("#dualScreenEnabled");
-      var swap = $("#swapDualScreenRoles");
-      var note = $("#dualScreenSwapNote");
-      status = status || readDualScreenStatus();
-      if (!status || status.ok === false) {
-        if (toggle) { toggle.checked = false; toggle.disabled = !isAndroidShell; }
-        if (swap) swap.disabled = true;
-        setDualScreenStatus("warn", "Secondary display unavailable", (status && status.error) || "Android did not report display support.");
-        return status;
-      }
-      if (toggle) { toggle.disabled = false; toggle.checked = Boolean(status.enabled); }
-      var displayText = status.secondaryAvailable
-        ? "Android exposed “" + (status.targetDisplayName || "secondary display") + "” (display " + status.targetDisplayId + ")."
-        : "No non-default Android display is available to ThorVault.";
-      var modeText = status.enabled
-        ? (status.presentationActive ? " Details are currently presented on the secondary display." : " Details will be presented when a Pokémon is selected.")
-        : " Single Screen mode is active; details open in ThorVault.";
-      setDualScreenStatus(status.secondaryAvailable ? "good" : "warn", status.enabled ? "Dual Screen " + (status.secondaryAvailable ? "enabled" : "waiting for firmware support") : "Single Screen enabled", displayText + modeText);
-      if (swap) swap.disabled = !status.roleSwapSupported;
-      if (note) note.textContent = status.roleSwapSupported
-        ? "This firmware allows the app to swap its primary and secondary screen roles."
-        : "This Android build can present details on an exposed second screen, but public Android APIs cannot move the already-running main app to the other built-in panel. The control stays disabled instead of pretending a swap occurred.";
-      return status;
-    }
-    window.thorVaultDualScreenStatusChanged = function () { renderDualScreenStatus(); };
     function toast(message) {
       var element = $("#toast");
       element.textContent = message;
@@ -1947,15 +1907,15 @@ async function showAndroidVaultPokemonDetails() {
   var entry = androidVaultSelectedEntry();
   if (!entry) return;
 
-  // On dual-screen Android handhelds, keep the box/grid on the top screen and
-  // show the selected Pokémon's details on the lower screen instead of covering
-  // the main UI with a modal. Fall back to the existing dialog on single-screen devices.
+  // On dual-screen Android handhelds, keep the box/grid on the main screen and
+  // show selected Pokémon details on the other screen. Fall back to the in-app
+  // dialog when the device does not expose or allow a separate display.
   if (publishAndroidBottomScreenPokemon(entry)) {
     if (!hasCompletePokemonMetadata(entry) && entry.payloadBase64) {
       try { await hydrateVaultEntry(entry); } catch (_error) {}
       publishAndroidBottomScreenPokemon(entry);
     }
-    toast("Pokémon details shown on the lower screen");
+    toast("Pokémon details shown on the other screen");
     return;
   }
 
@@ -5543,6 +5503,112 @@ function showSyncConflict(latest){pendingSyncConflict=latest;var x=summarizeVaul
       return result;
     }
 
+    function parseDisplayStatus(raw) {
+      try {
+        if (raw && typeof raw === "object") return raw;
+        return JSON.parse(String(raw || "{}"));
+      } catch (_error) {
+        return {ok:false, enabled:settings.dualScreenEnabled, message:"ThorVault could not read Android display status."};
+      }
+    }
+
+    function renderDisplayStatus(status) {
+      var statusNode = $("#dualScreenStatus");
+      if (!statusNode) return;
+      var enabled = Boolean(status && status.enabled);
+      $("#singleScreenMode").classList.toggle("primary", !enabled);
+      $("#dualScreenMode").classList.toggle("primary", enabled);
+      $("#singleScreenMode").setAttribute("aria-pressed", String(!enabled));
+      $("#dualScreenMode").setAttribute("aria-pressed", String(enabled));
+      var displays = status && Array.isArray(status.displays) ? status.displays : [];
+      var activeDetailsId = status && Number(status.secondaryActivityDisplayId);
+      var currentId = status && Number(status.currentDisplayId);
+      var secondaryId = status && status.secondaryDisplayId !== null && status.secondaryDisplayId !== undefined
+        ? Number(status.secondaryDisplayId) : null;
+      var lines = [];
+      if (status && status.message) lines.push(String(status.message));
+      lines.push("Mode: " + (enabled ? "Dual screen requested" : "Single screen"));
+      lines.push("ThorVault window: display " + (Number.isFinite(currentId) ? currentId : "unknown"));
+      if (Number.isFinite(activeDetailsId) && activeDetailsId >= 0)
+        lines.push("Details activity: display " + activeDetailsId);
+      else if (secondaryId !== null && Number.isFinite(secondaryId))
+        lines.push("Available secondary display: " + secondaryId + " (not confirmed active yet)");
+      if (displays.length) {
+        lines.push("Android displays: " + displays.map(function (display) {
+          return "Display " + display.id + " (" + (display.name || "unnamed") + ")" +
+            (display.isCurrent ? " — ThorVault window" : "");
+        }).join("; "));
+      } else {
+        lines.push("Android did not return a display list.");
+      }
+      var statusKind = !enabled ? "good" : (status && status.ok &&
+        ((Number.isFinite(activeDetailsId) && activeDetailsId >= 0) || status.presentationVisible) ? "good" : "warn");
+      statusNode.className = "shared-vault-status " + statusKind;
+      statusNode.replaceChildren();
+      var title = document.createElement("strong");
+      title.textContent = statusKind === "good"
+        ? (enabled ? "Dual-screen mode active" : "Single-screen mode active")
+        : (enabled ? "Dual-screen mode needs attention" : "Display status");
+      statusNode.appendChild(title);
+      var body = document.createElement("p");
+      body.className = "meta";
+      body.style.whiteSpace = "pre-line";
+      body.textContent = lines.join("\n");
+      statusNode.appendChild(body);
+      $("#swapDisplayRoles").disabled = displays.length < 2;
+    }
+
+    function refreshDisplayStatus() {
+      if (!isAndroidShell || !window.ThorVaultNative || typeof window.ThorVaultNative.getDualScreenStatus !== "function") {
+        renderDisplayStatus({ok:false, enabled:false, displays:[], message:"Dual-screen settings are available only in the Android app."});
+        return;
+      }
+      renderDisplayStatus(parseDisplayStatus(window.ThorVaultNative.getDualScreenStatus()));
+    }
+
+    function setDisplayMode(enabled, quiet) {
+      settings.dualScreenEnabled = Boolean(enabled);
+      saveSettings();
+      if (!isAndroidShell || !window.ThorVaultNative || typeof window.ThorVaultNative.setDualScreenEnabled !== "function") {
+        refreshDisplayStatus();
+        return;
+      }
+      var response;
+      try {
+        response = parseDisplayStatus(window.ThorVaultNative.setDualScreenEnabled(settings.dualScreenEnabled));
+      } catch (error) {
+        response = {ok:false, enabled:settings.dualScreenEnabled, message:error.message || String(error), displays:[]};
+      }
+      renderDisplayStatus(response);
+      if (!quiet) {
+        toast(settings.dualScreenEnabled
+          ? (response && response.message ? String(response.message) : "Dual-screen mode requested.")
+          : "Single-screen mode enabled.");
+      }
+    }
+
+    function swapDisplayRoles() {
+      if (!isAndroidShell || !window.ThorVaultNative || typeof window.ThorVaultNative.swapDisplayRoles !== "function") {
+        toast("Screen-role swapping is available only in the Android app.");
+        return;
+      }
+      settings.dualScreenEnabled = true;
+      saveSettings();
+      try {
+        var response = parseDisplayStatus(window.ThorVaultNative.swapDisplayRoles());
+        renderDisplayStatus(response);
+        toast(response.message || "Requesting screen-role swap…");
+      } catch (error) {
+        renderDisplayStatus({ok:false, enabled:true, displays:[], message:error.message || String(error)});
+      }
+    }
+
+    $("#singleScreenMode").onclick = function () { setDisplayMode(false, false); };
+    $("#dualScreenMode").onclick = function () { setDisplayMode(true, false); };
+    $("#swapDisplayRoles").onclick = swapDisplayRoles;
+    $("#refreshDisplayStatus").onclick = refreshDisplayStatus;
+    if (!isAndroidShell) $("#androidDisplaySettings").classList.add("hidden");
+
     $("#settingsForm").onsubmit = async function (event) {
       event.preventDefault();
       var data = new FormData(event.target);
@@ -5550,16 +5616,6 @@ function showSyncConflict(latest){pendingSyncConflict=latest;var x=summarizeVaul
       settings.serverUrl = String(data.get("serverUrl") || "").trim() || window.location.origin;
       settings.token = String(data.get("token") || "");
       settings.autoBackup = data.get("autoBackup") === "on";
-      settings.dualScreenEnabled = data.get("dualScreenEnabled") === "on";
-      if (isAndroidShell && window.ThorVaultNative && typeof window.ThorVaultNative.setDualScreenEnabled === "function") {
-        try {
-          var displayStatus = JSON.parse(window.ThorVaultNative.setDualScreenEnabled(settings.dualScreenEnabled));
-          renderDualScreenStatus(displayStatus);
-          if (settings.dualScreenEnabled) publishAndroidBottomScreenPokemon(androidVaultSelectedEntry());
-        } catch (error) {
-          setDualScreenStatus("warn", "Could not change screen mode", error.message || "Android did not accept the screen-mode change.");
-        }
-      }
       saveSettings();
       toast("Settings saved.");
       scheduleServerReconnect(0);
@@ -5571,20 +5627,13 @@ function showSyncConflict(latest){pendingSyncConflict=latest;var x=summarizeVaul
     settingsForm.elements.serverUrl.value = settings.serverUrl;
     settingsForm.elements.token.value = settings.token;
     settingsForm.elements.autoBackup.checked = settings.autoBackup;
-    settingsForm.elements.dualScreenEnabled.checked = Boolean(settings.dualScreenEnabled);
-    renderDualScreenStatus();
-    $("#refreshDualScreenStatus").onclick = function () { renderDualScreenStatus(); };
-    $("#swapDualScreenRoles").onclick = function () {
-      if (!window.ThorVaultNative || typeof window.ThorVaultNative.swapDualScreenRoles !== "function") {
-        setDualScreenStatus("warn", "Screen swapping unavailable", "Screen swapping is available only when Android firmware exposes it to the installed app.");
-        return;
-      }
-      try {
-        var result = JSON.parse(window.ThorVaultNative.swapDualScreenRoles());
-        renderDualScreenStatus(result);
-        if (result.error) toast(result.error);
-      } catch (error) { setDualScreenStatus("warn", "Screen swapping unavailable", error.message || "Android did not accept the screen swap."); }
-    };
+    if (isAndroidShell) {
+      window.setTimeout(function () {
+        // Apply the stored mode on launch so Dual Screen is an actual native
+        // display session, not merely a preference in the web UI.
+        setDisplayMode(settings.dualScreenEnabled, true);
+      }, 450);
+    }
     $("#refreshRegisteredClients").onclick = function () {
       refreshRegisteredClients().catch(function (error) {
         $("#registeredClients").innerHTML = '<p class="warning">' + escapeHtml(error.message) + '</p>';

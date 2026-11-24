@@ -158,6 +158,8 @@
     if (!design) return;
     button.setAttribute("aria-label", design[1]);
     button.setAttribute("title", design[1]);
+    // Keep tabs out of sequential/controller focus; touch and L1/R1 still click them.
+    button.tabIndex = -1;
     button.innerHTML =
       '<span class="android-tab-icon" aria-hidden="true">' + design[0] + '</span>' +
       '<span class="visually-hidden">' + design[1] + '</span>';
@@ -237,14 +239,35 @@
     var delta = direction === "previous" ? -1 : 1;
     var next = (current + delta + tabs.length) % tabs.length;
     tabs[next].click();
-    // The tabs are intentionally not part of D-pad navigation. After L1/R1
-    // changes the view, put controller focus in that view instead of on a tab.
-    var view = document.querySelector(".view.active-view");
-    var first = view && view.querySelector("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex='0']");
+    tabs[next].blur();
+
+    // L1/R1 switch the tab, but focus remains in the page content rather than
+    // on the navigation bar so the next D-pad/joystick movement is predictable.
+    var view = document.getElementById(tabs[next].getAttribute("data-view"));
+    var selectors = "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex='0']";
+    var controls = view ? Array.prototype.slice.call(view.querySelectorAll(selectors)) : [];
+    var first = controls.find(function (element) {
+      if (element.matches && element.matches("nav .tab")) return false;
+      var rect = element.getBoundingClientRect();
+      var style = window.getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    });
     if (first) {
       try { first.focus({preventScroll:true}); } catch (_error) { first.focus(); }
+      if (typeof first.scrollIntoView === "function") first.scrollIntoView({block:"nearest", inline:"nearest"});
     }
   };
+
+  // A touch can leave a tab as document.activeElement. Blur it after the tab's
+  // normal click handler has changed views; subsequent controller input then
+  // enters the selected view instead of moving along the tab bar.
+  document.querySelectorAll("nav .tab").forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      window.setTimeout(function () {
+        if (document.activeElement === tab) tab.blur();
+      }, 0);
+    });
+  });
 
   window.thorVaultMoveControllerFocus = function (direction) {
     var modal = document.querySelector("dialog[open]");
@@ -255,6 +278,9 @@
     else if (view) candidates = candidates.concat(Array.prototype.slice.call(view.querySelectorAll(selectors)));
     candidates = candidates.filter(function (element, index, all) {
       if (all.indexOf(element) !== index) return false;
+      // The navigation tabs are deliberately excluded from D-pad/joystick focus.
+      // Tabs remain reachable with touch and are switched with L1/R1 only.
+      if (element.matches && element.matches("nav .tab")) return false;
       var rect = element.getBoundingClientRect();
       var style = window.getComputedStyle(element);
       return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
@@ -268,9 +294,9 @@
       if (typeof first.scrollIntoView === "function") first.scrollIntoView({block:"nearest", inline:"nearest"});
       return;
     }
-    // Within a Pokémon box, move only to the adjacent slot in the same row or
-    // column. Geometry scoring can otherwise mistake a button above-right for
-    // the intended slot when a controller sends Right.
+    // Inside a Pokémon box, prefer another slot in the same grid before
+    // considering nearby toolbar controls. This makes D-pad navigation across
+    // the six-column box much more predictable on a handheld controller.
     if (current.classList && current.classList.contains("box-slot")) {
       var currentGrid = current.closest(".pokemon-box");
       if (currentGrid) {
@@ -285,26 +311,14 @@
           if (!slotRect.width || !slotRect.height) return;
           var sx = slotRect.left + slotRect.width / 2;
           var sy = slotRect.top + slotRect.height / 2;
-          var primary, secondary, sameLane;
-          if (direction === "left") {
-            if (sx >= slotCx - 1) return;
-            primary = slotCx - sx; secondary = Math.abs(slotCy - sy);
-            sameLane = secondary <= Math.max(currentSlotRect.height, slotRect.height) * 0.55;
-          } else if (direction === "right") {
-            if (sx <= slotCx + 1) return;
-            primary = sx - slotCx; secondary = Math.abs(slotCy - sy);
-            sameLane = secondary <= Math.max(currentSlotRect.height, slotRect.height) * 0.55;
-          } else if (direction === "up") {
-            if (sy >= slotCy - 1) return;
-            primary = slotCy - sy; secondary = Math.abs(slotCx - sx);
-            sameLane = secondary <= Math.max(currentSlotRect.width, slotRect.width) * 0.55;
-          } else {
-            if (sy <= slotCy + 1) return;
-            primary = sy - slotCy; secondary = Math.abs(slotCx - sx);
-            sameLane = secondary <= Math.max(currentSlotRect.width, slotRect.width) * 0.55;
-          }
-          if (!sameLane) return;
-          var score = primary + secondary * 0.1;
+          var primary, secondary;
+          if (direction === "left") { if (sx >= slotCx - 1) return; primary = slotCx - sx; secondary = Math.abs(slotCy - sy); }
+          else if (direction === "right") { if (sx <= slotCx + 1) return; primary = sx - slotCx; secondary = Math.abs(slotCy - sy); }
+          else if (direction === "up") { if (sy >= slotCy - 1) return; primary = slotCy - sy; secondary = Math.abs(slotCx - sx); }
+          else { if (sy <= slotCy + 1) return; primary = sy - slotCy; secondary = Math.abs(slotCx - sx); }
+          // Strongly prefer a slot on the same row/column. This prevents a
+          // horizontal press from drifting into a nearby row at the box edge.
+          var score = primary + secondary * 4.25;
           if (score < slotBestScore) { slotBestScore = score; slotBest = slot; }
         });
         if (slotBest) {
@@ -312,9 +326,8 @@
           if (typeof slotBest.scrollIntoView === "function") slotBest.scrollIntoView({block:"nearest", inline:"nearest"});
           return;
         }
-        // Avoid jumping sideways from the edge of the box to an unrelated
-        // control. Vertical movement can still leave the grid for its toolbar.
-        if (direction === "left" || direction === "right") return;
+        // No slot lies in this direction in the current grid. Keep searching
+        // visible controls and other grids rather than trapping focus at the edge.
       }
     }
 
@@ -333,10 +346,9 @@
       else if (direction === "right") { if (x <= cx + 1) return; primary = x - cx; secondary = Math.abs(cy - y); }
       else if (direction === "up") { if (y >= cy - 1) return; primary = cy - y; secondary = Math.abs(cx - x); }
       else { if (y <= cy + 1) return; primary = y - cy; secondary = Math.abs(cx - x); }
-      // Reject steep diagonals before ranking. This preserves expected left /
-      // right movement even when controls have uneven heights.
-      if (secondary > primary * 0.75) return;
-      var score = primary + secondary * 0.25;
+      // Prefer orthogonal alignment before raw distance: horizontal input should
+      // stay on the same row, and vertical input should stay in the same column.
+      var score = primary + secondary * 4.25;
       if (score < bestScore) { bestScore = score; best = candidate; }
     });
     if (!best) {
@@ -628,13 +640,17 @@
 
   window.thorVaultControllerActivate = function () {
     var active = document.activeElement;
+    // The tab bar is never activated by D-pad/A: only touch or L1/R1 switches tabs.
+    if (active && active.matches && active.matches("nav .tab")) active = null;
     if (!active || active === document.body || active.disabled) {
       var view = document.querySelector(".view.active-view");
       active = view && view.querySelector("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex='0']");
-      if (!active) return;
+      if (!active) return false;
       try { active.focus({preventScroll:true}); } catch (_error) { active.focus(); }
     }
+    if (active.matches && active.matches("nav .tab")) return false;
     if (typeof active.click === "function") active.click();
+    return true;
   };
 
   window.thorVaultControllerBack = function () {

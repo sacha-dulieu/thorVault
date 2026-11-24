@@ -7,12 +7,19 @@
       android:allowBackup="true"
       android:label="ThorVault"
       android:theme="@style/AppTheme"
+      android:resizeableActivity="true"
       android:usesCleartextTraffic="true">
-    <activity android:name=".MainActivity" android:exported="true">
+    <activity android:name=".MainActivity" android:exported="true" android:resizeableActivity="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
     </activity>
+    <activity
+        android:name=".SecondaryScreenActivity"
+        android:exported="false"
+        android:resizeableActivity="true"
+        android:excludeFromRecents="true"
+        android:theme="@style/AppTheme" />
   </application>
 </manifest>
