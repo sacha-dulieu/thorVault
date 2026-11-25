@@ -36,9 +36,8 @@ public static class EngineCore
         if (!SaveUtil.IsSizeValid(saveBytes.Length))
             throw new InvalidDataException($"Unsupported save size: {saveBytes.Length} bytes.");
 
-        // PKHeX.Core 26.7.7 exposes SaveUtil.GetSaveFile(path), while the
-        // byte-array GetVariantSAV API is not available in the package used by
-        // ThorVault. Materialize the bytes temporarily and use the same
+        // PKHeX.Core 26.10.18 exposes SaveUtil.GetSaveFile(path), while the
+        // byte-array GetVariantSAV API is not available in this package version. Materialize the bytes temporarily and use the same
         // supported parser as the existing server/CLI path.
         var safeName = string.IsNullOrWhiteSpace(filename) ? "main" : Path.GetFileName(filename);
         var tempPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}_{safeName}");
@@ -49,6 +48,8 @@ public static class EngineCore
             var parsed = SaveUtil.GetSaveFile(tempPath);
             return parsed switch
             {
+                SAV1 generationOne => generationOne,
+                SAV2 generationTwo => generationTwo,
                 SAV3RS rubySapphire => rubySapphire,
                 SAV3E emerald => emerald,
                 SAV3FRLG fireRedLeafGreen => fireRedLeafGreen,
@@ -60,11 +61,20 @@ public static class EngineCore
                 SAV6XY xy => xy,
                 SAV6AO ao => ao,
                 SAV7SM sm => sm,
+                SAV7USUM usum => usum,
+                SAV7b letsGo => letsGo,
+                SAV8SWSH swordShield => swordShield,
+                SAV8BS brilliantDiamondShiningPearl => brilliantDiamondShiningPearl,
+                SAV8LA legendsArceus => legendsArceus,
+                SAV9SV scarletViolet => scarletViolet,
+                SAV9ZA legendsZA => legendsZA,
                 _ => throw new InvalidDataException(
-                    "This build accepts Pokémon Ruby, Sapphire, Emerald, FireRed, LeafGreen, " +
-                    "Diamond, Pearl, Platinum, HeartGold, SoulSilver, Black, White, Black 2, White 2, " +
-                    "X, Y, Omega Ruby, Alpha Sapphire, " +
-                    "Sun, Moon, Ultra Sun, and Ultra Moon saves. " +
+                    "This build accepts main-series Pokémon saves from Generations 1–9, including " +
+                    "Red/Blue/Yellow, Gold/Silver/Crystal, Ruby/Sapphire/Emerald, FireRed/LeafGreen, " +
+                    "Diamond/Pearl/Platinum, HeartGold/SoulSilver, Black/White/Black 2/White 2, " +
+                    "X/Y, Omega Ruby/Alpha Sapphire, Sun/Moon/Ultra Sun/Ultra Moon, Let's Go Pikachu/Eevee, " +
+                    "Sword/Shield, Brilliant Diamond/Shining Pearl, Legends: Arceus, Scarlet/Violet, " +
+                    "and Legends: Z-A. " +
                     $"Detected: {parsed?.GetType().Name ?? "unknown"}."),
             };
         }
@@ -75,37 +85,91 @@ public static class EngineCore
         }
     }
 
-    private static string GetGameName(SaveFile save) => save.Version switch
+    private static string GetGameName(SaveFile save)
     {
-        GameVersion.R => "Pokémon Ruby",
-        GameVersion.S => "Pokémon Sapphire",
-        GameVersion.RS => "Pokémon Ruby/Sapphire",
-        GameVersion.E => "Pokémon Emerald",
-        GameVersion.FR => "Pokémon FireRed",
-        GameVersion.LG => "Pokémon LeafGreen",
-        GameVersion.FRLG => "Pokémon FireRed/LeafGreen",
-        GameVersion.D => "Pokémon Diamond",
-        GameVersion.P => "Pokémon Pearl",
-        GameVersion.Pt => "Pokémon Platinum",
-        GameVersion.HG => "Pokémon HeartGold",
-        GameVersion.SS => "Pokémon SoulSilver",
-        GameVersion.B => "Pokémon Black",
-        GameVersion.W => "Pokémon White",
-        GameVersion.B2 => "Pokémon Black 2",
-        GameVersion.W2 => "Pokémon White 2",
-        GameVersion.X => "Pokémon X",
-        GameVersion.Y => "Pokémon Y",
-        GameVersion.OR => "Pokémon Omega Ruby",
-        GameVersion.AS => "Pokémon Alpha Sapphire",
-        GameVersion.SN => "Pokémon Sun",
-        GameVersion.MN => "Pokémon Moon",
-        GameVersion.US => "Pokémon Ultra Sun",
-        GameVersion.UM => "Pokémon Ultra Moon",
-        _ => save.Version.ToString(),
-    };
+        var version = save.Version.ToString();
+        return save switch
+        {
+            // Retail RBY saves do not encode Red vs Blue as a reliable version
+            // value; Yellow is identifiable from its save structure. Do not
+            // report an ambiguous retail save as an exact game.
+            SAV1 => save.Version switch
+            {
+                GameVersion.YW => "Pokémon Yellow",
+                GameVersion.RD => "Pokémon Red (Virtual Console)",
+                GameVersion.GN or GameVersion.BU => "Pokémon Blue (Virtual Console)",
+                _ => "Pokémon Red/Blue",
+            },
+            // Retail Gold/Silver saves are identified as the shared GS group.
+            SAV2 => save.Version switch
+            {
+                GameVersion.C => "Pokémon Crystal",
+                GameVersion.GD => "Pokémon Gold",
+                GameVersion.SI => "Pokémon Silver",
+                GameVersion.GS => "Pokémon Gold/Silver",
+                _ => "Pokémon Gold/Silver",
+            },
+            SAV7b => version switch
+            {
+                "GP" => "Pokémon: Let's Go, Pikachu!",
+                "GE" => "Pokémon: Let's Go, Eevee!",
+                _ => "Pokémon: Let's Go, Pikachu!/Eevee!",
+            },
+            SAV8SWSH => version switch
+            {
+                "SW" => "Pokémon Sword",
+                "SH" => "Pokémon Shield",
+                _ => "Pokémon Sword/Shield",
+            },
+            SAV8BS => version switch
+            {
+                "BD" => "Pokémon Brilliant Diamond",
+                "SP" => "Pokémon Shining Pearl",
+                _ => "Pokémon Brilliant Diamond/Shining Pearl",
+            },
+            SAV8LA => "Pokémon Legends: Arceus",
+            SAV9SV => version switch
+            {
+                "SL" => "Pokémon Scarlet",
+                "VL" => "Pokémon Violet",
+                _ => "Pokémon Scarlet/Violet",
+            },
+            SAV9ZA => "Pokémon Legends: Z-A",
+            _ => save.Version switch
+            {
+                GameVersion.R => "Pokémon Ruby",
+                GameVersion.S => "Pokémon Sapphire",
+                GameVersion.RS => "Pokémon Ruby/Sapphire",
+                GameVersion.E => "Pokémon Emerald",
+                GameVersion.FR => "Pokémon FireRed",
+                GameVersion.LG => "Pokémon LeafGreen",
+                GameVersion.FRLG => "Pokémon FireRed/LeafGreen",
+                GameVersion.D => "Pokémon Diamond",
+                GameVersion.P => "Pokémon Pearl",
+                GameVersion.Pt => "Pokémon Platinum",
+                GameVersion.HG => "Pokémon HeartGold",
+                GameVersion.SS => "Pokémon SoulSilver",
+                GameVersion.B => "Pokémon Black",
+                GameVersion.W => "Pokémon White",
+                GameVersion.B2 => "Pokémon Black 2",
+                GameVersion.W2 => "Pokémon White 2",
+                GameVersion.X => "Pokémon X",
+                GameVersion.Y => "Pokémon Y",
+                GameVersion.OR => "Pokémon Omega Ruby",
+                GameVersion.AS => "Pokémon Alpha Sapphire",
+                GameVersion.SN => "Pokémon Sun",
+                GameVersion.MN => "Pokémon Moon",
+                GameVersion.US => "Pokémon Ultra Sun",
+                GameVersion.UM => "Pokémon Ultra Moon",
+                _ => save.Version.ToString(),
+            },
+        };
+    }
 
     private static string GetGameFamily(SaveFile save) => save switch
     {
+        SAV1 => "RBY",
+        SAV2 => "GSC",
         SAV3RS => "RS",
         SAV3E => "E",
         SAV3FRLG => "FRLG",
@@ -118,6 +182,12 @@ public static class EngineCore
         SAV6AO => "ORAS",
         SAV7SM => "SM",
         SAV7USUM => "USUM",
+        SAV7b => "LGPE",
+        SAV8SWSH => "SWSH",
+        SAV8BS => "BDSP",
+        SAV8LA => "LA",
+        SAV9SV => "SV",
+        SAV9ZA => "ZA",
         _ => $"GEN{save.Generation}",
     };
 
@@ -132,19 +202,24 @@ public static class EngineCore
 
     private static string NormalizeFormat(string format)
     {
-        var value = format.Trim().TrimStart('.').ToLowerInvariant();
-        return value is "pk3" or "pk4" or "pk5" or "pk6" or "pk7"
+        var value = (format ?? string.Empty).Trim().TrimStart('.').ToLowerInvariant();
+        return value is "pk1" or "pk2" or "pk3" or "pk4" or "pk5" or "pk6" or "pk7" or
+            "pb7" or "pk8" or "pb8" or "pa8" or "pk9" or "pa9"
             ? value
             : throw new InvalidDataException($"Unsupported Pokémon payload format: {format}.");
     }
 
     private static int GenerationForFormat(string format) => NormalizeFormat(format) switch
     {
+        "pk1" => 1,
+        "pk2" => 2,
         "pk3" => 3,
         "pk4" => 4,
         "pk5" => 5,
         "pk6" => 6,
-        "pk7" => 7,
+        "pk7" or "pb7" => 7,
+        "pk8" or "pb8" or "pa8" => 8,
+        "pk9" or "pa9" => 9,
         _ => throw new InvalidDataException("Unsupported Pokémon payload format."),
     };
 
@@ -153,19 +228,28 @@ public static class EngineCore
         if (!File.Exists(path))
             throw new FileNotFoundException("The stored Pokémon could not be found.", path);
 
+        var normalized = NormalizeFormat(format);
         var payload = File.ReadAllBytes(path);
-        PKM pokemon = NormalizeFormat(format) switch
+        PKM pokemon = normalized switch
         {
+            "pk1" => new PK1(payload),
+            "pk2" => new PK2(payload),
             "pk3" => new PK3(payload),
             "pk4" => new PK4(payload),
             "pk5" => new PK5(payload),
             "pk6" => new PK6(payload),
             "pk7" => new PK7(payload),
+            "pb7" => new PB7(payload),
+            "pk8" => new PK8(payload),
+            "pb8" => new PB8(payload),
+            "pa8" => new PA8(payload),
+            "pk9" => new PK9(payload),
+            "pa9" => new PA9(payload),
             _ => throw new InvalidDataException("Unsupported Pokémon payload format."),
         };
 
         if (pokemon.Species == 0)
-            throw new InvalidDataException($"The stored {NormalizeFormat(format).ToUpperInvariant()} payload does not contain a Pokémon.");
+            throw new InvalidDataException($"The stored {normalized.ToUpperInvariant()} payload does not contain a Pokémon.");
 
         return pokemon;
     }
@@ -310,7 +394,7 @@ public static class EngineCore
         {
             ok = true,
             readOnly = true,
-            nativePayloadFormat = $"pk{save.Generation}",
+            nativePayloadFormat = NormalizeFormat(save.BlankPKM.Extension),
             save = SaveSummary(save, saveBytes),
             pokemon = records,
             emptySlots,
@@ -468,7 +552,15 @@ private static IReadOnlyList<object> BuildConversionChanges(PKM source, PKM conv
                 "Cross-generation conversion is not enabled in this release.");
         }
         if (pokemon.Format != expectedGeneration)
-            blockers.Add($"The stored entity reports format {pokemon.Format}; {normalizedFormat.ToUpperInvariant()} was required.");
+            blockers.Add($"The stored entity reports generation {pokemon.Format}; {normalizedFormat.ToUpperInvariant()} was required.");
+
+        var requiredFormat = NormalizeFormat(save.BlankPKM.Extension);
+        if (!string.Equals(normalizedFormat, requiredFormat, StringComparison.OrdinalIgnoreCase))
+        {
+            blockers.Add(
+                $"This destination game requires {requiredFormat.ToUpperInvariant()} Pokémon files, " +
+                $"but the selected entry is {normalizedFormat.ToUpperInvariant()}. Format-specific cross-game conversion is not enabled.");
+        }
         if (pokemon.Species > save.MaxSpeciesID)
             blockers.Add($"Species ID {pokemon.Species} exceeds this game's maximum {save.MaxSpeciesID}.");
         if (pokemon.Ability > save.MaxAbilityID)
@@ -497,7 +589,7 @@ private static IReadOnlyList<object> BuildConversionChanges(PKM source, PKM conv
                 game = GetGameName(save),
                 family = GetGameFamily(save),
                 generation = save.Generation,
-                requiredPayloadFormat = $"pk{save.Generation}",
+                requiredPayloadFormat = requiredFormat,
                 maxSpeciesId = save.MaxSpeciesID,
                 maxMoveId = save.MaxMoveID,
                 maxItemId = save.MaxItemID,
@@ -709,7 +801,7 @@ public static object ClearBoxSlot(
             type = save.GetType().Name,
             family = GetGameFamily(save),
             generation = save.Generation,
-            nativePayloadFormat = $"pk{save.Generation}",
+            nativePayloadFormat = NormalizeFormat(save.BlankPKM.Extension),
             game = GetGameName(save),
             gameVersion = save.Version.ToString(),
             trainer = save.OT,

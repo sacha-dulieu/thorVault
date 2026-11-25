@@ -1,4 +1,4 @@
-const CACHE = "thorvault-v01225";
+const CACHE = "thorvault-v01226";
 const SPRITE_CACHE = "thorvault-sprites-v1";
 const FILES = ["/", "/manifest.webmanifest", "/icon.svg"];
 

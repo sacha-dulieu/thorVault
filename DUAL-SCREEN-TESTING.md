@@ -1,8 +1,8 @@
-# v0.12.25-alpha dual-screen and controller test checklist
+# v0.12.26-alpha dual-screen and controller test checklist
 
 ## Dual-screen mode
 
-1. Install the v0.12.25-alpha APK on the AYN Thor.
+1. Install the v0.12.26-alpha APK on the AYN Thor.
 2. Open Settings and check the **Android displays** status block. It should list both physical/logical displays and show which display ThorVault is using.
 3. Select **Dual screen**. The other display should open a full-screen ThorVault Pokémon-details page, initially showing “Select a Pokémon”.
 4. Select a Pokémon in the Vault. The other display should update with its name, species, level, nature, ability, held item, origin, trainer, location, and moves while the main UI stays interactive.

@@ -1,19 +1,7 @@
-# ThorVault Android v0.12.25-alpha
+# ThorVault Android v0.12.26-alpha
 
-## Offline-first save handling
+Android builds bundle the local WebAssembly Pokémon engine. Supported main-series save families are Generations 1–9; game-specific native formats include PK8 (Sword/Shield), PA8 (Legends: Arceus), and PA9 (Legends: Z-A), as well as PB7/PB8 for Let's Go and BDSP.
 
-Opening an Android save never contacts the ThorVault server.
+Build from the repository root with GitHub Actions using the `Build installable ThorVault APK` workflow. Download the `ThorVault-v0.12.26-alpha-APK` artifact from the successful run and extract the APK.
 
-The app reads the granted Android file URI, passes the bytes to the bundled
-local WebAssembly/PKHeX.Core engine, and opens Box Manager from that local
-result.
-
-Server connectivity is only for background Vault synchronization and backups.
-
-Test:
-
-1. Disable network access.
-2. Launch the APK.
-3. Grant/select the White 2 save.
-4. Open it.
-5. Box Manager must load without any server URL or token.
+Copy-to-game is format-checked and creates a modified copy. True-move source clearing remains restricted to Generations 3–7. Back up real save files before applying a modified save.

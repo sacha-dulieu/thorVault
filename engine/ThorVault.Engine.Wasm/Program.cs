@@ -97,8 +97,8 @@ public partial class LocalEngine
         {
             ok = true,
             engine = "ThorVault.Engine.Wasm",
-            generationRange = "3-7",
-            nativeFormats = new[] { "pk3", "pk4", "pk5", "pk6", "pk7" },
+            generationRange = "1-9",
+            nativeFormats = new[] { "pk1", "pk2", "pk3", "pk4", "pk5", "pk6", "pk7", "pb7", "pk8", "pb8", "pa8", "pk9", "pa9" },
         });
     }
 }

@@ -173,13 +173,13 @@ public final class MainActivity extends ComponentActivity {
     settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
     settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
     settings.setUserAgentString(
-        settings.getUserAgentString() + " ThorVaultAndroid/0.12.25"
+        settings.getUserAgentString() + " ThorVaultAndroid/0.12.26"
     );
     String bundledVersion = prefs.getString("web_asset_version", "");
-    if (!"0.12.25".equals(bundledVersion)) {
+    if (!"0.12.26".equals(bundledVersion)) {
       webView.clearCache(true);
       webView.clearHistory();
-      prefs.edit().putString("web_asset_version", "0.12.25").apply();
+      prefs.edit().putString("web_asset_version", "0.12.26").apply();
     }
 
     WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
@@ -204,7 +204,7 @@ public final class MainActivity extends ComponentActivity {
       }
     });
     webView.addJavascriptInterface(new Bridge(), "ThorVaultNative");
-    webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=1225");
+    webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=1226");
   }
 
   @Override protected void onDestroy() {
@@ -1329,7 +1329,7 @@ public final class MainActivity extends ComponentActivity {
           connection.setRequestProperty(key, headers.optString(key, ""));
         }
         connection.setRequestProperty(
-            "X-ThorVault-Client-Version", "0.12.25"
+            "X-ThorVault-Client-Version", "0.12.26"
         );
         connection.setRequestProperty("X-ThorVault-Api-Version", "1");
         connection.setRequestProperty(
@@ -1669,7 +1669,8 @@ public final class MainActivity extends ComponentActivity {
   private static int directoryPriority(String name, String parentPath) {
     String value = (parentPath + "/" + name).toLowerCase(Locale.ROOT);
     if (value.contains("nintendo 3ds") || value.contains("/title") || value.contains("/data") || value.contains("/sdmc") || value.contains("/users")) return 0;
-    if (value.contains("azahar") || value.contains("citra") || value.contains("melonds") || value.contains("/saves") || value.contains("/save")) return 1;
+    if (value.contains("ryujinx") || value.contains("eden") || value.contains("yuzu") || value.contains("citron") ||
+        value.contains("azahar") || value.contains("citra") || value.contains("melonds") || value.contains("/saves") || value.contains("/save")) return 1;
     if (value.contains("/3ds") || value.contains("/nds") || value.contains("/gba")) return 2;
     return 5;
   }
@@ -1686,7 +1687,8 @@ public final class MainActivity extends ComponentActivity {
       candidate = p.contains("/title/") || p.contains("/save/") || p.contains("/saves/") ||
           p.contains("azahar") || p.contains("citra") || p.contains("nintendo 3ds") ||
           p.contains("melonds") || p.contains("melon ds") || p.contains("00040000") ||
-          p.contains("00000001") || p.contains("sdmc");
+          p.contains("00000001") || p.contains("sdmc") || p.contains("ryujinx") ||
+          p.contains("eden") || p.contains("yuzu") || p.contains("citron");
     } else if (n.endsWith(".sav") || n.endsWith(".dsv") || n.endsWith(".srm")) {
       candidate = true;
     } else {
@@ -1726,6 +1728,28 @@ public final class MainActivity extends ComponentActivity {
     String n = name == null ? "" : name.toLowerCase(Locale.ROOT);
     String p = path == null ? "" : path.toLowerCase(Locale.ROOT);
     if (n.equals("main") && (p.contains("nintendo 3ds") || p.contains("azahar") || p.contains("citra") || p.contains("/title/00040000/") || p.contains("00040000") || p.contains("sdmc"))) return "Nintendo 3DS";
+    if (p.contains("ryujinx") || p.contains("eden") || p.contains("yuzu") || p.contains("citron") ||
+        p.contains("010003f003a34000") || p.contains("0100187003a36000") ||
+        p.contains("0100abf008968000") || p.contains("01008db008c2c000") ||
+        p.contains("0100000011d90000") || p.contains("010018e011d92000") ||
+        p.contains("01001f5010dfa000") || p.contains("0100f43008c44000") ||
+        p.contains("0100a3d008c5c000") || p.contains("01008f6008c5e000")) return "Nintendo Switch";
+    String game = detectGame(name, path);
+    if (game != null) {
+      if (game.equals("Pokémon Red") || game.equals("Pokémon Blue") || game.equals("Pokémon Yellow") ||
+          game.equals("Pokémon Gold") || game.equals("Pokémon Silver") || game.equals("Pokémon Crystal")) return "Game Boy / Game Boy Color";
+      if (game.equals("Pokémon Ruby") || game.equals("Pokémon Sapphire") || game.equals("Pokémon Emerald") ||
+          game.equals("Pokémon FireRed") || game.equals("Pokémon LeafGreen")) return "Game Boy Advance";
+      if (game.equals("Pokémon Diamond") || game.equals("Pokémon Pearl") || game.equals("Pokémon Platinum") ||
+          game.equals("Pokémon HeartGold") || game.equals("Pokémon SoulSilver") ||
+          game.equals("Pokémon Black") || game.equals("Pokémon White") || game.equals("Pokémon Black 2") || game.equals("Pokémon White 2")) return "Nintendo DS";
+      if (game.equals("Pokémon X") || game.equals("Pokémon Y") || game.equals("Pokémon Omega Ruby") ||
+          game.equals("Pokémon Alpha Sapphire") || game.equals("Pokémon Sun") || game.equals("Pokémon Moon") ||
+          game.equals("Pokémon Ultra Sun") || game.equals("Pokémon Ultra Moon")) return "Nintendo 3DS";
+      if (game.contains("Let's Go") || game.contains("Sword") || game.contains("Shield") ||
+          game.contains("Brilliant Diamond") || game.contains("Shining Pearl") || game.contains("Legends") ||
+          game.contains("Scarlet") || game.contains("Violet")) return "Nintendo Switch";
+    }
     if (p.contains("/3ds/") || p.contains("/3ds saves/")) return "Nintendo 3DS";
     if (p.contains("/nds/") || p.contains("/ds/") || p.contains("melonds") || p.contains("drastic") || p.contains("desmume")) return "Nintendo DS";
     if (p.contains("/gba/") || p.contains("game boy advance") || p.contains("gameboyadvance") || p.contains("mgba") || p.contains("myboy") || p.contains("pizzaboy")) return "Game Boy Advance";
@@ -1743,10 +1767,22 @@ public final class MainActivity extends ComponentActivity {
     // below title/00040000/. Match the stable game-family prefix so regional
     // variants that differ in the final byte are recognised as the same game.
     String[][] titleIds = {
+      // Nintendo 3DS title-ID suffixes.
       {"00055d", "Pokémon X"}, {"00055e", "Pokémon Y"},
       {"0011c4", "Pokémon Omega Ruby"}, {"0011c5", "Pokémon Alpha Sapphire"},
       {"001648", "Pokémon Sun"}, {"00175e", "Pokémon Moon"},
-      {"001b50", "Pokémon Ultra Sun"}, {"001b51", "Pokémon Ultra Moon"}
+      {"001b50", "Pokémon Ultra Sun"}, {"001b51", "Pokémon Ultra Moon"},
+      // Nintendo Switch application title IDs (base IDs; update IDs retain the prefix).
+      {"010003f003a34000", "Pokémon: Let's Go, Pikachu!"},
+      {"0100187003a36000", "Pokémon: Let's Go, Eevee!"},
+      {"0100abf008968000", "Pokémon Sword"},
+      {"01008db008c2c000", "Pokémon Shield"},
+      {"0100000011d90000", "Pokémon Brilliant Diamond"},
+      {"010018e011d92000", "Pokémon Shining Pearl"},
+      {"01001f5010dfa000", "Pokémon Legends: Arceus"},
+      {"0100a3d008c5c000", "Pokémon Scarlet"},
+      {"01008f6008c5e000", "Pokémon Violet"},
+      {"0100f43008c44000", "Pokémon Legends: Z-A"}
     };
     for (String[] entry : titleIds) {
       if (p.contains(entry[0])) return entry[1];
@@ -1756,6 +1792,13 @@ public final class MainActivity extends ComponentActivity {
     String normalized = p.replace("é", "e").replace("è", "e")
         .replaceAll("[^a-z0-9]+", " ").trim().replaceAll("\\s+", " ");
     String[][] phrases = {
+      {"legends z a", "Pokémon Legends: Z-A"}, {"legends za", "Pokémon Legends: Z-A"}, {"pokemon z a", "Pokémon Legends: Z-A"}, {"pokemon za", "Pokémon Legends: Z-A"},
+      {"legends arceus", "Pokémon Legends: Arceus"}, {"pokemon arceus", "Pokémon Legends: Arceus"},
+      {"brilliant diamond", "Pokémon Brilliant Diamond"}, {"shining pearl", "Pokémon Shining Pearl"},
+      {"pokemon sword", "Pokémon Sword"}, {"pokemon shield", "Pokémon Shield"},
+      {"pokemon scarlet", "Pokémon Scarlet"}, {"pokemon violet", "Pokémon Violet"},
+      {"lets go pikachu", "Pokémon: Let's Go, Pikachu!"}, {"let s go pikachu", "Pokémon: Let's Go, Pikachu!"},
+      {"lets go eevee", "Pokémon: Let's Go, Eevee!"}, {"let s go eevee", "Pokémon: Let's Go, Eevee!"},
       {"omega ruby", "Pokémon Omega Ruby"}, {"alpha sapphire", "Pokémon Alpha Sapphire"},
       {"ultra sun", "Pokémon Ultra Sun"}, {"ultra moon", "Pokémon Ultra Moon"},
       {"heartgold", "Pokémon HeartGold"}, {"heart gold", "Pokémon HeartGold"},
@@ -1768,6 +1811,9 @@ public final class MainActivity extends ComponentActivity {
       {"pokemon pearl", "Pokémon Pearl"}, {"pokemon black", "Pokémon Black"},
       {"pokemon white", "Pokémon White"}, {"pokemon emerald", "Pokémon Emerald"},
       {"pokemon sapphire", "Pokémon Sapphire"}, {"pokemon ruby", "Pokémon Ruby"},
+      {"pokemon yellow", "Pokémon Yellow"}, {"pokemon red", "Pokémon Red"},
+      {"pokemon blue", "Pokémon Blue"}, {"pokemon crystal", "Pokémon Crystal"},
+      {"pokemon gold", "Pokémon Gold"}, {"pokemon silver", "Pokémon Silver"},
       {"pokemon x", "Pokémon X"}, {"pokemon y", "Pokémon Y"},
       {"pokemon sun", "Pokémon Sun"}, {"pokemon moon", "Pokémon Moon"}
     };
@@ -1781,7 +1827,11 @@ public final class MainActivity extends ComponentActivity {
     String n = name == null ? "" : name.toLowerCase(Locale.ROOT);
     String p = path == null ? "" : path.toLowerCase(Locale.ROOT);
     if (n.endsWith(".sav") || n.endsWith(".dsv") || n.endsWith(".srm")) return "high";
-    if (n.equals("main") && (p.contains("/title/00040000/") || p.contains("nintendo 3ds") || p.contains("azahar") || p.contains("citra") || p.contains("00040000"))) return "high";
+    if (n.equals("main") && (p.contains("/title/00040000/") || p.contains("nintendo 3ds") || p.contains("azahar") || p.contains("citra") || p.contains("00040000") ||
+        p.contains("ryujinx") || p.contains("eden") || p.contains("yuzu") || p.contains("citron") ||
+        p.contains("010003f003a34000") || p.contains("0100187003a36000") || p.contains("0100abf008968000") ||
+        p.contains("01008db008c2c000") || p.contains("0100000011d90000") || p.contains("010018e011d92000") ||
+        p.contains("01001f5010dfa000") || p.contains("0100f43008c44000") || p.contains("0100a3d008c5c000") || p.contains("01008f6008c5e000"))) return "high";
     if (n.equals("save.dat") || n.equals("savedata.dat") || n.equals("main.dat") || n.equals("save.bin") || n.equals("savedata.bin") || n.equals("main.bin")) return "medium";
     return "possible";
   }
@@ -1790,6 +1840,10 @@ public final class MainActivity extends ComponentActivity {
     String n = name.toLowerCase(Locale.ROOT);
     String p = path.toLowerCase(Locale.ROOT);
     if (n.equals("main") && (p.contains("azahar") || p.contains("citra") || p.contains("nintendo 3ds") || p.contains("/title/00040000/") || p.contains("00040000"))) return "Nintendo 3DS active main";
+    if (n.equals("main") && (p.contains("ryujinx") || p.contains("eden") || p.contains("yuzu") || p.contains("citron") ||
+        p.contains("010003f003a34000") || p.contains("0100187003a36000") || p.contains("0100abf008968000") ||
+        p.contains("01008db008c2c000") || p.contains("0100000011d90000") || p.contains("010018e011d92000") ||
+        p.contains("01001f5010dfa000") || p.contains("0100f43008c44000") || p.contains("0100a3d008c5c000") || p.contains("01008f6008c5e000"))) return "Nintendo Switch active main";
     if (n.endsWith(".dsv")) return "Nintendo DS battery save (.dsv)";
     if (n.endsWith(".srm")) return "RetroArch battery save (.srm)";
     if (n.endsWith(".sav")) return "Battery save (.sav)";
@@ -1801,6 +1855,10 @@ public final class MainActivity extends ComponentActivity {
   private static String saveLabel(String name, String path) {
     String lowerPath = path.toLowerCase(Locale.ROOT);
     if (name.equalsIgnoreCase("main") && (lowerPath.contains("/title/00040000/") || lowerPath.contains("00040000"))) return "Nintendo 3DS main";
+    if (name.equalsIgnoreCase("main") && (lowerPath.contains("ryujinx") || lowerPath.contains("eden") || lowerPath.contains("yuzu") || lowerPath.contains("citron") ||
+        lowerPath.contains("010003f003a34000") || lowerPath.contains("0100187003a36000") || lowerPath.contains("0100abf008968000") ||
+        lowerPath.contains("01008db008c2c000") || lowerPath.contains("0100000011d90000") || lowerPath.contains("010018e011d92000") ||
+        lowerPath.contains("01001f5010dfa000") || lowerPath.contains("0100f43008c44000") || lowerPath.contains("0100a3d008c5c000") || lowerPath.contains("01008f6008c5e000"))) return "Nintendo Switch main";
     return name;
   }
 

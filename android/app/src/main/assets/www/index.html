@@ -455,8 +455,8 @@
 </head>
 <body>
 <header>
-  <div><p class="eyebrow">LOCAL-FIRST POKÉMON BANK · v0.12.25-alpha</p><h1>ThorVault</h1></div>
-  <div class="status"><span id="androidBuildBadge" class="pill android-build-badge hidden">Android 0.12.25</span><span id="versionCompatibility" class="pill version-pill muted-pill">App 0.12.25 · Server ?</span><span id="network" class="pill">Checking</span><span id="syncState" class="pill muted-pill">Local only</span></div>
+  <div><p class="eyebrow">LOCAL-FIRST POKÉMON BANK · v0.12.26-alpha</p><h1>ThorVault</h1></div>
+  <div class="status"><span id="androidBuildBadge" class="pill android-build-badge hidden">Android 0.12.26</span><span id="versionCompatibility" class="pill version-pill muted-pill">App 0.12.26 · Server ?</span><span id="network" class="pill">Checking</span><span id="syncState" class="pill muted-pill">Local only</span></div>
 </header>
 
 <nav>
@@ -512,7 +512,7 @@
       <div>
         <p class="eyebrow">BOX-STYLE TRANSFER MANAGER</p>
         <h2>Game save ↔ ThorVault</h2>
-        <p>Load a Nintendo DS <code>.sav/.dsv</code> or Nintendo 3DS <code>main</code>. ThorVault supports native PK3, PK4, PK5, PK6, and PK7 browsing and same-generation copies.</p>
+        <p>Load a Pokémon save from Generations 1–9. ThorVault reads legacy <code>.sav/.dsv</code> files, Nintendo 3DS <code>main</code> files, and Nintendo Switch emulator <code>main</code> files. Copy transfers require the exact native Pokémon format used by the destination game.</p>
         <p class="manager-sync-note"><strong>Important:</strong> Shared Vault sync synchronizes Pokémon stored in ThorVault. Pokémon written into a game's PC box are part of that game's save file and are not copied into another device's local emulator save automatically.</p>
       </div>
       <span id="engineStatus" class="pill muted-pill">Checking engine…</span>
@@ -533,10 +533,10 @@
               <button id="toggleSavePicker" type="button">Replace loaded save</button>
             </div>
             <div id="savePickerPanel" class="save-picker-panel">
-              <label><span id="savePickerLabel">Pokémon save (.sav/.dsv/main) — Gen 3 through Gen 7</span>
+              <label><span id="savePickerLabel">Pokémon save (.sav/.dsv/main) — Generations 1 through 9</span>
                 <input id="orasSaveFile" type="file">
               </label>
-              <p class="meta">Nintendo DS: choose the emulator’s <strong>.sav</strong> or <strong>.dsv</strong>. Nintendo 3DS/Azahar: choose the active file named exactly <strong>main</strong>. Close the emulator before replacing a save.</p>
+              <p class="meta">Game Boy / Game Boy Color / GBA / Nintendo DS: choose the emulator's <strong>.sav</strong> or <strong>.dsv</strong>. Nintendo 3DS/Azahar: choose the active <strong>main</strong> file. Nintendo Switch emulators (for example Eden, Ryujinx, or yuzu): export or select the game's <strong>main</strong> save file. Close the emulator before replacing a save.</p>
             </div>
           </div>
           <div class="manager-actions">
@@ -577,7 +577,7 @@
               <option value="true-move">True move — two-phase confirmation</option>
             </select>
           </label>
-          <p class="meta">True moves support one native-format PC-box Pokémon at a time across supported Gen 3–7 saves. Party removal and PK6 → PK7 true moves stay copy-only.</p>
+          <p class="meta">Copy mode supports native save formats across Generations 1–9 (for example, Sword/Shield PK8, Legends: Arceus PA8, and Legends: Z-A PA9). A Pokémon must already match the destination game’s exact native format; cross-format conversion is not generally enabled. True-move source clearing remains limited to Generations 3–7.</p>
         </div>
 
         <div class="manager-controls">
@@ -732,7 +732,7 @@
             <p><strong>1. Add folders.</strong> Android does not let ThorVault search the entire device. Add each accessible ROM, emulator, or save folder that may contain battery saves.</p>
             <p><strong>2. Select locations to scan.</strong> Folder choices and scan checkboxes are remembered. Scan only selected locations or deselect large folders temporarily.</p>
             <p><strong>3. Watch progress.</strong> ThorVault reports entries checked and candidates found as it runs. You can cancel, and partial results are retained when you cancel or hit a safety limit.</p>
-            <p><strong>4. Pokémon saves only.</strong> ThorVault matches known Pokémon game names and Nintendo 3DS title IDs. Unidentified files and other games are hidden instead of appearing as save candidates.</p>
+            <p><strong>4. Pokémon saves only.</strong> ThorVault matches known Pokémon game names, Nintendo 3DS title IDs, and Nintendo Switch title IDs. Unidentified files and other games are hidden instead of appearing as save candidates.</p>
             <p><strong>Controller.</strong> D-pad moves the highlight; A or the centre button activates it; B or Escape closes the current dialog; L1/R1 changes tabs. The highlight shows which control will activate.</p>
           </div>
         </details>
@@ -1008,7 +1008,7 @@
   <div class="stack">
     <div class="dialog-head">
       <div>
-        <p class="eyebrow">COPY TO 3DS SAVE</p>
+        <p class="eyebrow">COPY TO GAME SAVE</p>
         <h2 id="withdrawTitle">Withdraw Pokémon</h2>
       </div>
       <button id="closeWithdrawDialog" type="button">×</button>
@@ -1050,7 +1050,7 @@
 
   var STATE_KEY = "thorvault-state-v011";
   var SETTINGS_KEY = "thorvault-settings-v011";
-  var CLIENT_VERSION = "0.12.25";
+  var CLIENT_VERSION = "0.12.26";
   var CLIENT_API_VERSION = 1;
   var BROWSER_FETCH = window.fetch.bind(window);
   var SYNC_META_KEY = "thorvault-sync-meta-v1";
@@ -1385,7 +1385,7 @@
       var earlyAndroidBadge = document.getElementById("androidBuildBadge");
       if (earlyAndroidBadge) {
         earlyAndroidBadge.classList.remove("hidden");
-        earlyAndroidBadge.textContent = "Android 0.12.25";
+        earlyAndroidBadge.textContent = "Android 0.12.26";
       }
       try {
         var nativeConfig = JSON.parse(window.ThorVaultNative.getServerConfig() || "{}");
@@ -2116,7 +2116,7 @@ async function openSelectedAndroidVaultEntry() {
               : '') +
             '<button data-move="' + escapeHtml(entry.id) + '">Move</button>' +
             (entry.payloadBase64
-              ? '<button data-export-payload="' + escapeHtml(entry.id) + '">Export .pk6</button>'
+              ? '<button data-export-payload="' + escapeHtml(entry.id) + '">Export .' + escapeHtml(normalizedPayloadFormat(entry)) + '</button>'
               : '') +
             '<button class="danger delete-action wide-action" data-delete="' + escapeHtml(entry.id) + '">Delete from Vault</button>' +
           '</div>' +
@@ -2241,9 +2241,9 @@ async function openSelectedAndroidVaultEntry() {
         record && (record.payloadFormat || record.format) ||
         (fallbackGeneration ? "pk" + fallbackGeneration : "")
       ).toLowerCase().replace(/^\./, "");
-      if (value === "pk3" || value === "pk4" || value === "pk5" || value === "pk6" || value === "pk7")
+      if (["pk1", "pk2", "pk3", "pk4", "pk5", "pk6", "pk7", "pb7", "pk8", "pb8", "pa8", "pk9", "pa9"].indexOf(value) >= 0)
         return value;
-      return fallbackGeneration >= 3 && fallbackGeneration <= 7
+      return fallbackGeneration >= 1 && fallbackGeneration <= 9
         ? "pk" + fallbackGeneration
         : "pk6";
     }
@@ -2257,6 +2257,8 @@ async function openSelectedAndroidVaultEntry() {
     }
 
     function nativePayloadFormatForLoadedSave() {
+      var save = orasImport && orasImport.save;
+      if (save && save.nativePayloadFormat) return String(save.nativePayloadFormat).toLowerCase().replace(/^\./, "");
       var generation = loadedSaveGeneration();
       return generation ? "pk" + generation : "";
     }
@@ -2615,15 +2617,20 @@ function trueMoveDirectionLabel(direction) {
 
 function renderTransferMode() {
   var dsLoaded = isLegacyHandheldSaveLoaded();
+  var generation = loadedSaveGeneration();
+  var trueMoveAvailable = !generation || (generation >= 3 && generation <= 7);
   var trueOption = $("#transferModeSelect").querySelector('option[value="true-move"]');
-  trueOption.disabled = false;
+  trueOption.disabled = !trueMoveAvailable;
+  if (!trueMoveAvailable && transferMode === "true-move") transferMode = "copy";
   $("#transferModeSelect").value = transferMode;
   var trueMode = transferMode === "true-move";
-  $("#transferModeHelp").innerHTML = trueMode
-    ? (dsLoaded
-      ? '<strong>True-move mode — Generation 3–5 experimental:</strong> ThorVault prepares one native-format PC-box move, downloads a recoverable modified save, and waits for your confirmation. Test the generated save in an emulator before confirming.'
-      : '<strong>True-move mode:</strong> ThorVault prepares one native-format PC-box move, downloads a recoverable modified <code>main</code>, then waits for your confirmation before finalizing.')
-    : '<strong>Copy mode:</strong> game transfers create another copy. The uploaded original remains untouched.';
+  $("#transferModeHelp").innerHTML = !trueMoveAvailable
+    ? '<strong>Copy mode only:</strong> true-move source clearing is currently available only for Generations 3–7. This save remains fully available for safe copy transfers.'
+    : (trueMode
+      ? (dsLoaded
+        ? '<strong>True-move mode — Generation 3–7 experimental:</strong> ThorVault prepares one native-format PC-box move, downloads a recoverable modified save, and waits for your confirmation. Test the generated save in an emulator before confirming.'
+        : '<strong>True-move mode:</strong> ThorVault prepares one native-format PC-box move, downloads a recoverable modified save, then waits for your confirmation before finalizing.')
+      : '<strong>Copy mode:</strong> game transfers create another copy. The uploaded original remains untouched.');
   $(".batch-bar").classList.toggle("hidden", trueMode);
   if (trueMode && batchMode) {
     batchMode = false;
@@ -2887,7 +2894,7 @@ async function rollbackMoveTransaction(transactionId) {
         picker.classList.remove("hidden");
         openButton.classList.remove("hidden");
         openButton.textContent = "Open save";
-        $("#savePickerLabel").textContent = "Pokémon save (.sav/.dsv/main) — Gen 3 through Gen 7";
+        $("#savePickerLabel").textContent = "Pokémon save (.sav/.dsv/main) — Generations 1 through 9";
         savePickerExpanded = true;
         return;
       }
@@ -3187,7 +3194,7 @@ async function rollbackMoveTransaction(transactionId) {
 
     function depositImportedPokemonToSlot(record, bankId, targetBox, targetSlot, options) {
       options = options || {};
-      if (!record || !record.payloadBase64) throw new Error("The selected game Pokémon has no PK6 payload.");
+      if (!record || !record.payloadBase64) throw new Error("The selected game Pokémon has no native payload.");
       if (vaultEntryAt(bankId, targetBox, targetSlot)) throw new Error("The selected ThorVault slot is occupied.");
       var duplicates = vaultEntriesByHash(record.payloadSha256);
       if (duplicates.length) {
@@ -3620,7 +3627,7 @@ async function moveGamePokemonToVault(record, bankId, targetBox, targetSlot) {
         })
       });
       var result = await response.json();
-      if (!response.ok) throw new Error(result.error || "The working 3DS save could not be updated.");
+      if (!response.ok) throw new Error(result.error || "The working game save could not be updated.");
       return result;
     }
 
@@ -3646,7 +3653,7 @@ async function rebuildWorkingSaveFromQueue() {
     }
 
     async function copyVaultPokemonToWorkingSave(entry, box, slot) {
-      if (!orasWorkingSaveBase64) throw new Error("Load a supported 3DS save first.");
+      if (!orasWorkingSaveBase64) throw new Error("Load a supported Pokémon game save first.");
       if (!entry.payloadBase64) throw new Error("This Vault entry has no stored Pokémon payload.");
       if (entry.moveLock) throw new Error("Resolve this Pokémon’s existing true-move transaction first.");
       var requiredFormat = nativePayloadFormatForLoadedSave();
@@ -3973,12 +3980,12 @@ async function rebuildWorkingSaveFromQueue() {
       if (!response.ok) throw new Error(result.error || "Could not load save history.");
       var list = $("#saveHistoryList");
       if (!result.backups || !result.backups.length) {
-        list.innerHTML = '<p class="empty">No indexed save backups yet. Open a Gen 6 save first.</p>';
+        list.innerHTML = '<p class="empty">No indexed save backups yet. Open a supported Pokémon save first.</p>';
         return result.backups || [];
       }
       list.innerHTML = result.backups.map(function (backup) {
         return '<div class="history-row"><div>' +
-          '<strong>' + escapeHtml(backup.game || "Gen 6 save") + '</strong>' +
+          '<strong>' + escapeHtml(backup.game || "Pokémon save") + '</strong>' +
           '<p class="meta">' + escapeHtml(backup.kind) + ' · ' +
             escapeHtml(backup.trainer || "Unknown trainer") + ' · ' +
             escapeHtml(new Date(backup.createdAt).toLocaleString()) + '</p>' +
@@ -4069,7 +4076,7 @@ async function rebuildWorkingSaveFromQueue() {
           if (!info || info.ok === false)
             throw new Error((info && info.error) || "Local engine reported an error.");
 
-          $("#engineStatus").textContent = "Local Gen 3–7 engine ready";
+          $("#engineStatus").textContent = "Local Gen 1–9 engine ready";
           $("#engineStatus").classList.remove("offline");
           clearStartupError();
           return;
@@ -4084,7 +4091,7 @@ async function rebuildWorkingSaveFromQueue() {
       try {
         var response = await thorFetch(endpoint("/api/engine/status"), {cache:"no-store"});
         var status = await response.json();
-        $("#engineStatus").textContent = status.ready ? "Gen 3–7 engine ready" : "Engine setup required";
+        $("#engineStatus").textContent = status.ready ? "Gen 1–9 engine ready" : "Engine setup required";
         $("#engineStatus").classList.toggle("offline", !status.ready);
         clearStartupError();
       } catch (error) {
@@ -4095,7 +4102,7 @@ async function rebuildWorkingSaveFromQueue() {
 
     async function inspectOrasSave() {
       var input = $("#orasSaveFile");
-      if (!input.files || !input.files[0]) throw new Error("Choose a supported Azahar/Citra main save first.");
+      if (!input.files || !input.files[0]) throw new Error("Choose a supported Pokémon save file first.");
       if (!settings.token) throw new Error("Enter the server access token in Settings first.");
 
       var file = input.files[0];
@@ -4159,7 +4166,7 @@ async function rebuildWorkingSaveFromQueue() {
     async function inspectWithdrawalDestination() {
       if (!withdrawalEntry) throw new Error("Choose a stored Pokémon first.");
       var input = $("#withdrawSaveFile");
-      if (!input.files || !input.files[0]) throw new Error("Choose a destination 3DS main save first.");
+      if (!input.files || !input.files[0]) throw new Error("Choose a destination Pokémon game save first.");
       if (!settings.token) throw new Error("Enter the server access token in Settings first.");
 
       withdrawalFile = input.files[0];
@@ -4185,7 +4192,7 @@ async function rebuildWorkingSaveFromQueue() {
           throw new Error(
             "This destination requires " + requiredFormat.toUpperCase() +
             ", but the selected Vault Pokémon is " + payloadFormatLabel(withdrawalEntry) +
-            ". Cross-generation conversion is not enabled in v0.7."
+            ". Cross-format conversion is not enabled in this release."
           );
         }
 
@@ -5262,6 +5269,14 @@ function showSyncConflict(latest){pendingSyncConflict=latest;var x=summarizeVaul
     };
     $("#transferModeSelect").onchange = function () {
       var requested = this.value === "true-move" ? "true-move" : "copy";
+      var generation = loadedSaveGeneration();
+      if (requested === "true-move" && generation && (generation < 3 || generation > 7)) {
+        window.alert("True-move source clearing is currently supported only for Generations 3–7. Use Copy mode for this save.");
+        this.value = "copy";
+        transferMode = "copy";
+        renderTransferMode();
+        return;
+      }
       if (requested === "true-move" && activeMoveTransaction()) {
         window.alert("Resolve the active true-move transaction first.");
         this.value = transferMode;
@@ -5811,7 +5826,7 @@ function showSyncConflict(latest){pendingSyncConflict=latest;var x=summarizeVaul
       scheduleServerReconnect(SERVER_RETRY_OFFLINE_MS);
     });
     if (!isAndroidShell && "serviceWorker" in navigator)
-      navigator.serviceWorker.register("service-worker.js?v=01225").catch(function (error) { console.error(error); });
+      navigator.serviceWorker.register("service-worker.js?v=01226").catch(function (error) { console.error(error); });
 
     render();
     normalizeVaultSlots();

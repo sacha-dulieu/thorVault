@@ -143,7 +143,7 @@
     var badge = document.querySelector("#androidBuildBadge");
     if (badge) {
       badge.classList.remove("hidden");
-      badge.textContent = "Android 0.12.25";
+      badge.textContent = "Android 0.12.26";
     }
 
   var tabDesign = {
@@ -603,7 +603,14 @@
       ["00055d", "Pokémon X"], ["00055e", "Pokémon Y"],
       ["0011c4", "Pokémon Omega Ruby"], ["0011c5", "Pokémon Alpha Sapphire"],
       ["001648", "Pokémon Sun"], ["00175e", "Pokémon Moon"],
-      ["001b50", "Pokémon Ultra Sun"], ["001b51", "Pokémon Ultra Moon"]
+      ["001b50", "Pokémon Ultra Sun"], ["001b51", "Pokémon Ultra Moon"],
+      ["010003f003a34000", "Pokémon: Let's Go, Pikachu!"],
+      ["0100187003a36000", "Pokémon: Let's Go, Eevee!"],
+      ["0100abf008968000", "Pokémon Sword"], ["01008db008c2c000", "Pokémon Shield"],
+      ["0100000011d90000", "Pokémon Brilliant Diamond"], ["010018e011d92000", "Pokémon Shining Pearl"],
+      ["01001f5010dfa000", "Pokémon Legends: Arceus"],
+      ["0100a3d008c5c000", "Pokémon Scarlet"], ["01008f6008c5e000", "Pokémon Violet"],
+      ["0100f43008c44000", "Pokémon Legends: Z-A"]
     ];
     for (var i = 0; i < ids.length; i++) {
       if (text.indexOf(ids[i][0]) >= 0) return ids[i][1];
@@ -611,6 +618,12 @@
 
     var normalized = text.replace(/pok[eé]mon/g, "pokemon").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
     var names = [
+      ["legends z a", "Pokémon Legends: Z-A"], ["legends za", "Pokémon Legends: Z-A"], ["pokemon z a", "Pokémon Legends: Z-A"], ["pokemon za", "Pokémon Legends: Z-A"],
+      ["legends arceus", "Pokémon Legends: Arceus"], ["pokemon arceus", "Pokémon Legends: Arceus"],
+      ["brilliant diamond", "Pokémon Brilliant Diamond"], ["shining pearl", "Pokémon Shining Pearl"],
+      ["pokemon sword", "Pokémon Sword"], ["pokemon shield", "Pokémon Shield"],
+      ["pokemon scarlet", "Pokémon Scarlet"], ["pokemon violet", "Pokémon Violet"],
+      ["let s go pikachu", "Pokémon: Let's Go, Pikachu!"], ["let s go eevee", "Pokémon: Let's Go, Eevee!"],
       ["omega ruby", "Pokémon Omega Ruby"], ["alpha sapphire", "Pokémon Alpha Sapphire"],
       ["ultra sun", "Pokémon Ultra Sun"], ["ultra moon", "Pokémon Ultra Moon"],
       ["heartgold", "Pokémon HeartGold"], ["heart gold", "Pokémon HeartGold"],
@@ -623,6 +636,9 @@
       ["pokemon pearl", "Pokémon Pearl"], ["pokemon black", "Pokémon Black"],
       ["pokemon white", "Pokémon White"], ["pokemon emerald", "Pokémon Emerald"],
       ["pokemon sapphire", "Pokémon Sapphire"], ["pokemon ruby", "Pokémon Ruby"],
+      ["pokemon yellow", "Pokémon Yellow"], ["pokemon red", "Pokémon Red"],
+      ["pokemon blue", "Pokémon Blue"], ["pokemon crystal", "Pokémon Crystal"],
+      ["pokemon gold", "Pokémon Gold"], ["pokemon silver", "Pokémon Silver"],
       ["pokemon x", "Pokémon X"], ["pokemon y", "Pokémon Y"],
       ["pokemon sun", "Pokémon Sun"], ["pokemon moon", "Pokémon Moon"]
     ];

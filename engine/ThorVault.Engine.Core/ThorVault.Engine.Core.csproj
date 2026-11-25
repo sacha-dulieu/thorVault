@@ -6,5 +6,5 @@
     <LangVersion>14.0</LangVersion>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
-  <ItemGroup><PackageReference Include="PKHeX.Core" Version="26.7.7" /></ItemGroup>
+  <ItemGroup><PackageReference Include="PKHeX.Core" Version="26.10.18" /></ItemGroup>
 </Project>

@@ -1,49 +1,49 @@
-# ThorVault v0.12.25-alpha
+# ThorVault v0.12.26-alpha
 
-## Offline-first Android transfer milestone
+## Offline-first Pokémon save support expansion
 
-Android save operations are now local:
+This release expands the local PKHeX.Core engine to recognise and read main-series save files across Generations 1–9, including the user's priority games:
 
-- Open/parse save → bundled WASM/PKHeX.Core.
-- Game → Vault true move source clearing → bundled WASM/PKHeX.Core.
-- Vault → Game compatibility check → bundled WASM/PKHeX.Core.
-- Vault → Game save write → bundled WASM/PKHeX.Core.
-- Final Apply to device → Android Storage Access Framework.
+- **Pokémon Legends: Z-A** — Gen 9 `SAV9ZA`, native `PA9` Pokémon records.
+- **Pokémon Sword / Shield** — Gen 8 `SAV8SWSH`, native `PK8` records.
+- **Pokémon Legends: Arceus** — Gen 8 `SAV8LA`, native `PA8` records.
 
-The server is used for Vault synchronization, server-side snapshots/backups, and
-multi-device reconciliation. Device-save backups created before Apply/Restore are
-stored locally under the selected Android scan location. Browser save operations
-remain server-backed.
+It also adds the remaining main-series save families:
 
+- Gen 1: Red, Blue, Yellow (`SAV1` / `PK1`)
+- Gen 2: Gold, Silver, Crystal (`SAV2` / `PK2`)
+- Gen 3: Ruby, Sapphire, Emerald, FireRed, LeafGreen (`PK3`)
+- Gen 4: Diamond, Pearl, Platinum, HeartGold, SoulSilver (`PK4`)
+- Gen 5: Black, White, Black 2, White 2 (`PK5`)
+- Gen 6: X, Y, Omega Ruby, Alpha Sapphire (`PK6`)
+- Gen 7: Sun, Moon, Ultra Sun, Ultra Moon (`PK7`); Let's Go Pikachu/Eevee (`PB7`)
+- Gen 8: Sword/Shield (`PK8`); Brilliant Diamond/Shining Pearl (`PB8`); Legends: Arceus (`PA8`)
+- Gen 9: Scarlet/Violet (`PK9`); Legends: Z-A (`PA9`)
 
-## Android scan and controller improvements
+### Transfer safety and limitations
 
-- Add and remember multiple Android Storage Access Framework folder locations.
-- Choose which remembered folders to scan on each run.
-- Scan asynchronously with progress, cancellation, partial results, and a two-minute no-progress watchdog.
-- Keep partial or previous results when a location fails or a scan reaches a safety limit.
-- List recognised Pokémon saves only; use the correct Nintendo 3DS title-ID families to name X, Y, Omega Ruby, Alpha Sapphire, Sun, Moon, Ultra Sun, and Ultra Moon. Other games and unidentified generic saves are hidden, including from previously cached scan results.
-- Fingerprint small save candidates with SHA-256 to flag exact duplicates; duplicates are reported only and never deleted automatically.
-- Cache discovery results across app restarts.
-- Before applying or restoring a device save, create a uniquely named backup and JSON manifest, verify the backup, then verify the write; attempt a verified rollback if a write fails.
-- Controller navigation: L1/R1 cycles app tabs; D-pad prefers nearby Pokémon box slots when moving around the grid and can move to surrounding controls at the grid edges; A/centre activates the focused control; B/Escape dismisses an open dialog.
+- Import, inspection, compatibility checking, and copy-to-empty-box-slot use the native entity format required by the destination save. Generation alone is not sufficient: `PK8`, `PB8`, and `PA8` are different formats; so are `PK9` and `PA9`.
+- ThorVault blocks format mismatches rather than silently converting an entity between games. General cross-game/cross-generation conversion is not part of this release, apart from the existing experimental PK6 → PK7 workflow.
+- Copy mode preserves the source save and writes to a separate working copy with post-write validation. Back up your original save before applying any generated save.
+- True-move source clearing remains limited to the previous Generation 3–7 implementation. Generations 1–2 and 8–9 are copy-only until their clear/write/rollback path is separately tested.
+- Emulator save discovery now recognises game folders and Switch title IDs for Pokémon titles, including Legends: Z-A, Sword/Shield, Legends: Arceus, BDSP, Scarlet/Violet, and Let's Go. Discovery remains heuristic and depends on Android folder permissions and the directory naming/path.
 
-Scan detection is heuristic and does not guarantee every emulator save will be found. Android may deny access to protected directories; add any accessible save directories separately.
+## Android and local-engine details
 
+- Local Android save operations use the bundled WebAssembly / PKHeX.Core engine.
+- Server-side mode continues to use the same .NET engine when installed.
+- PKHeX.Core updated to 26.10.18 for support of current Gen 9/Z-A save structures.
+- The repository pins .NET SDK 10.0.302 through `global.json` for reproducible WebAssembly publishing.
+- Android app versionCode: 1226; versionName: 0.12.26-alpha.
+- The GitHub Actions artifact is `ThorVault-v0.12.26-alpha-APK`.
 
-## v0.12.25-alpha
+**Testing note:** Static checks can verify project consistency, but a full .NET/Android build and tests with representative real save backups are still required. Do not test write-back on your only copy of a save.
+
+## Previous release
+
+### v0.12.25-alpha
 
 - Added Android Settings controls for Single Screen, Dual Screen, display diagnostics, and swapping the active ThorVault window between detected displays.
-- Dual-screen mode now attempts to launch a dedicated full-screen Pokémon details Activity on the other display first, then falls back to an Android Presentation when firmware refuses Activity-on-display launching.
-- Fixed the native bridge returning success before the secondary-screen view had actually opened; status now records detected displays and launch errors.
-- Controller D-pad and analog joystick focus no longer includes navigation tabs. Tabs are reached by touch or switched with L1/R1, and directional focus prioritises the same row/column to reduce wrong-way jumps.
-- Incremented the app to versionCode 1225 / versionName 0.12.25-alpha.
-- Physical AYN Thor testing is still required: Android firmware can restrict launching activities or presentations on built-in displays.
-- Pinned the local-engine WebAssembly build to .NET SDK 10.0.302 to avoid SDK-version-dependent publish output.
-
-## v0.12.24-alpha
-
-- Experimental AYN Thor secondary-screen Pokémon details panel using Android presentation displays.
-- Selecting a Pokémon updates the lower-screen details panel when the device exposes a usable secondary display; single-screen devices retain the existing details dialog.
-- Reduced Android/WebView gray tap/focus highlighting while retaining a visible mint controller-focus outline.
-- Requires testing on the physical AYN Thor; firmware may restrict secondary-display presentations.
+- Dual-screen mode attempts a dedicated full-screen Pokémon details Activity on the other display, then falls back to an Android Presentation when firmware refuses Activity-on-display launching.
+- Controller D-pad and analog joystick focus excludes navigation tabs. Tabs are reached by touch or switched with L1/R1.
+- Pinned the local-engine WebAssembly build to .NET SDK 10.0.302.

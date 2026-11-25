@@ -19,7 +19,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-SERVER_VERSION = "0.12.22"
+SERVER_VERSION = "0.12.26"
 API_VERSION = 1
 MIN_CLIENT_API = 1
 MAX_CLIENT_API = 1
@@ -55,7 +55,7 @@ MAX_BODY = 50 * 1024 * 1024
 MAX_SAVE_BODY = 8 * 1024 * 1024
 
 ROM_EXT = {".3ds",".cci",".cxi",".nds",".gba",".gb",".gbc",".xci",".nsp",".rvz",".iso",".chd"}
-SAVE_EXT = {".sav",".dsv",".dat",".bin",".srm",".pk1",".pk2",".pk3",".pk4",".pk5",".pk6",".pk7",".pk8",".pk9",".pkm"}
+SAVE_EXT = {".sav", ".dsv", ".dat", ".bin", ".srm", ".pk1", ".pk2", ".pk3", ".pk4", ".pk5", ".pk6", ".pk7", ".pb7", ".pk8", ".pb8", ".pa8", ".pk9", ".pa9", ".pkm"}
 
 def now():
     return datetime.now(timezone.utc).isoformat()
@@ -209,8 +209,8 @@ def recommended_save_filename(filename, generation):
 
 def normalized_payload_format(value):
     cleaned = str(value or "").strip().lower().lstrip(".")
-    if cleaned not in {"pk3", "pk4", "pk5", "pk6", "pk7"}:
-        raise ValueError("payloadFormat must be pk3, pk4, pk5, pk6, or pk7.")
+    if cleaned not in {"pk1", "pk2", "pk3", "pk4", "pk5", "pk6", "pk7", "pb7", "pk8", "pb8", "pa8", "pk9", "pa9"}:
+        raise ValueError("payloadFormat must be a supported native Pokémon format from PK1–PK9, PB7, PB8, PA8, or PA9.")
     return cleaned
 
 
@@ -257,7 +257,7 @@ def engine_status():
     }
 
 class Handler(SimpleHTTPRequestHandler):
-    server_version = "ThorVault/0.12.22"
+    server_version = "ThorVault/0.12.26"
 
     def translate_path(self, request_path):
         relative = urlparse(request_path).path.lstrip("/") or "index.html"
@@ -554,7 +554,9 @@ class Handler(SimpleHTTPRequestHandler):
 
             if not save_data or len(save_data) > MAX_SAVE_BODY:
                 raise ValueError("The destination save is empty or too large.")
-            if len(pokemon_data) < 70 or len(pokemon_data) > 512:
+            # Gen 1/2 entities are shorter than modern PKM records. Let PKHeX
+            # validate the exact size/structure for the selected format.
+            if len(pokemon_data) < 20 or len(pokemon_data) > 512:
                 raise ValueError("The stored Pokémon payload has an unexpected size.")
 
             original_hash = hashlib.sha256(save_data).hexdigest()
@@ -667,7 +669,9 @@ class Handler(SimpleHTTPRequestHandler):
 
             if not save_data or len(save_data) > MAX_SAVE_BODY:
                 raise ValueError("The destination save is empty or too large.")
-            if len(pokemon_data) < 70 or len(pokemon_data) > 512:
+            # Gen 1/2 entities are shorter than modern PKM records. Let PKHeX
+            # validate the exact size/structure for the selected format.
+            if len(pokemon_data) < 20 or len(pokemon_data) > 512:
                 raise ValueError("The stored Pokémon payload has an unexpected size.")
 
             with tempfile.TemporaryDirectory(prefix="thorvault-3ds-check-") as temp_dir:
@@ -732,7 +736,9 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as exc:
                 raise ValueError("The Pokémon payload is not valid Base64.") from exc
 
-            if len(pokemon_data) < 70 or len(pokemon_data) > 512:
+            # Gen 1/2 entities are shorter than modern PKM records. Let PKHeX
+            # validate the exact size/structure for the selected format.
+            if len(pokemon_data) < 20 or len(pokemon_data) > 512:
                 raise ValueError("The stored Pokémon payload has an unexpected size.")
 
             with tempfile.TemporaryDirectory(prefix="thorvault-pokemon-inspect-") as temp_dir:
